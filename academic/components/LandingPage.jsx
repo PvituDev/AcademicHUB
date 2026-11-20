@@ -4,6 +4,8 @@
   function LandingPage({
     onEntrar,
     onEntrarRepresentante,
+    onAbrirNotificacoes,
+    naoLidas = 0,
     totalEventos,
     totalEditais,
     totalMateriais,
@@ -95,7 +97,22 @@
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <button
+              onClick={onAbrirNotificacoes}
+              title="Central de Notificações"
+              className="relative p-2.5 rounded-xl border border-slate-800 hover:border-emerald-500/40 bg-slate-900/80 hover:bg-slate-800/90 text-slate-300 hover:text-emerald-400 transition-all duration-300 hover:-translate-y-0.5"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              {naoLidas > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px] flex items-center justify-center shadow">
+                  {naoLidas}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={onEntrarRepresentante}
               className="text-xs sm:text-sm text-slate-300 hover:text-white px-3.5 py-2 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/80 hover:bg-slate-800/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40 active:translate-y-0"

@@ -9,6 +9,7 @@
       GRADE_PADRAO,
       api,
       utils: { contemOfensa, formatarContagemRegressiva },
+      notificacoes: notifService,
     } = window.IFinityHub;
 
     const [mostrarLanding, setMostrarLanding] = useState(true);
@@ -16,6 +17,16 @@
     const [materiais, setMateriais] = useState([]);
     const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
     const [aba, setAba] = useState("dashboard");
+
+    // Estados de Notificações
+    const [historicoNotif, setHistoricoNotif] = useState(() =>
+      notifService.carregarHistorico()
+    );
+    const [toasts, setToasts] = useState([]);
+    const [painelNotifAberto, setPainelNotifAberto] = useState(false);
+    const [permissaoNativa, setPermissaoNativa] = useState(() =>
+      "Notification" in window ? Notification.permission : "unsupported"
+    );
 
     const [senhaEditor, setSenhaEditor] = useState("");
     const [usuarioAtual, setUsuarioAtual] = useState({
@@ -55,94 +66,103 @@
     const calendarRef = useRef(null);
     const calendarInstanceRef = useRef(null);
 
-    const carregarEventos = async () => {
+    const sincronizarTudo = async () => {
       try {
-        const resposta = await api.listarProvas();
-        if (!resposta.ok) throw new Error("Erro na rede");
-        const data = await resposta.json();
+        const [resProvas, resMat, resEd, resForum] = await Promise.all([
+          api.listarProvas(),
+          api.listarMateriais(),
+          api.listarEditais(),
+          api.listarForum(),
+        ]);
 
-        const hoje = new Date().toISOString().slice(0, 10);
-        const validos = [];
-        const expirados = [];
+        let listaEventosFormatados = [];
+        if (resProvas.ok) {
+          const data = await resProvas.json();
+          const hoje = new Date().toISOString().slice(0, 10);
+          const validos = [];
+          const expirados = [];
 
-        data.forEach((item) => {
-          const dataItem = (item.start || "").slice(0, 10);
-          const vencida =
-            typeof item.vencida === "boolean"
-              ? item.vencida
-              : dataItem && dataItem < hoje;
+          data.forEach((item) => {
+            const dataItem = (item.start || "").slice(0, 10);
+            const vencida =
+              typeof item.vencida === "boolean"
+                ? item.vencida
+                : dataItem && dataItem < hoje;
 
-          if (vencida) {
-            expirados.push(item);
-          } else {
-            validos.push(item);
+            if (vencida) {
+              expirados.push(item);
+            } else {
+              validos.push(item);
+            }
+          });
+
+          if (expirados.length > 0 && senhaEditor) {
+            await Promise.all(
+              expirados.map((item) =>
+                api
+                  .deletarProva(item.id, senhaEditor)
+                  .catch((err) =>
+                    console.error("Erro ao excluir atividade vencida:", err)
+                  )
+              )
+            );
           }
-        });
 
-        if (expirados.length > 0 && senhaEditor) {
-          await Promise.all(
-            expirados.map((item) =>
-              api
-                .deletarProva(item.id, senhaEditor)
-                .catch((err) =>
-                  console.error("Erro ao excluir atividade vencida:", err)
-                )
-            )
-          );
+          listaEventosFormatados = validos.map((item) => ({
+            id: String(item.id),
+            title:
+              item.tituloFormatado ||
+              `[${item.tipo ? item.tipo.toUpperCase() : "EVENTO"}] ${item.title}`,
+            start: item.start,
+            color:
+              item.cor ||
+              (item.tipo === "prova"
+                ? "#dc2626"
+                : item.tipo === "dever"
+                  ? "#d97706"
+                  : item.tipo === "evento"
+                    ? "#8b5cf6"
+                    : "#2563eb"),
+            tipo: item.tipo,
+            nomeOriginal: item.title,
+            descricao: item.descricao || "Sem descrição cadastrada.",
+          }));
+          setEventos(listaEventosFormatados);
         }
 
-        const formatados = validos.map((item) => ({
-          id: String(item.id),
-          title:
-            item.tituloFormatado ||
-            `[${item.tipo ? item.tipo.toUpperCase() : "EVENTO"}] ${item.title}`,
-          start: item.start,
-          color:
-            item.cor ||
-            (item.tipo === "prova"
-              ? "#dc2626"
-              : item.tipo === "dever"
-                ? "#d97706"
-                : item.tipo === "evento"
-                  ? "#8b5cf6"
-                  : "#2563eb"),
-          tipo: item.tipo,
-          nomeOriginal: item.title,
-          descricao: item.descricao || "Sem descrição cadastrada.",
-        }));
-        setEventos(formatados);
-      } catch (err) {
-        console.error("Erro ao carregar eventos:", err);
-      }
-    };
+        const listaMateriais = resMat.ok ? await resMat.json() : [];
+        if (resMat.ok) setMateriais(listaMateriais);
 
-    const carregarMateriais = async () => {
-      try {
-        const resposta = await api.listarMateriais();
-        if (!resposta.ok) throw new Error("Erro na rede");
-        setMateriais(await resposta.json());
-      } catch (err) {
-        console.error("Erro ao carregar materiais:", err);
-      }
-    };
+        const listaEditais = resEd.ok ? await resEd.json() : [];
+        if (resEd.ok) setEditais(listaEditais);
 
-    const carregarEditais = async () => {
-      try {
-        const resposta = await api.listarEditais();
-        if (!resposta.ok) throw new Error("Erro na rede");
-        setEditais(await resposta.json());
-      } catch (err) {
-        console.error("Erro ao carregar editais:", err);
-      }
-    };
+        if (resForum.ok) setForumPosts(await resForum.json());
 
-    const carregarForum = async () => {
-      try {
-        const resposta = await api.listarForum();
-        if (!resposta.ok) throw new Error("Erro na rede");
-        setForumPosts(await resposta.json());
+        // Verifica novidades e dispara notificações
+        const novidades = notifService.detectarNovidades({
+          eventos: listaEventosFormatados,
+          editais: listaEditais,
+          materiais: listaMateriais,
+        });
+
+        if (novidades.length > 0) {
+          setHistoricoNotif((prev) => {
+            const atualizado = [...novidades, ...prev];
+            notifService.salvarHistorico(atualizado);
+            return atualizado;
+          });
+
+          setToasts((prev) => [...novidades, ...prev].slice(0, 4));
+
+          novidades.forEach((n) => {
+            notifService.dispararNativa(n.titulo, n.descricao, () => {
+              setMostrarLanding(false);
+              setAba(n.aba);
+            });
+          });
+        }
       } catch (err) {
-        console.error("Erro ao carregar fórum:", err);
+        console.error("Erro na sincronização:", err);
       }
     };
 
@@ -157,13 +177,10 @@
     };
 
     useEffect(() => {
-      carregarEventos();
-      carregarMateriais();
-      carregarEditais();
-      carregarForum();
+      sincronizarTudo();
       carregarGrade();
 
-      const intervalo = setInterval(carregarEventos, 5 * 60 * 1000);
+      const intervalo = setInterval(sincronizarTudo, 60 * 1000);
       return () => clearInterval(intervalo);
     }, []);
 
@@ -187,6 +204,36 @@
         calendarInstanceRef.current = calendar;
       }
     }, [mostrarLanding, aba, eventos]);
+
+    // Controles de Notificação
+    const naoLidas = historicoNotif.filter((n) => !n.lida).length;
+
+    const ativarNotificacoesNavegador = async () => {
+      const status = await notifService.pedirPermissaoNativa();
+      setPermissaoNativa(status);
+    };
+
+    const abrirNotificacao = (notif) => {
+      setHistoricoNotif((prev) => {
+        const atualizado = prev.map((item) =>
+          item.uid === notif.uid ? { ...item, lida: true } : item
+        );
+        notifService.salvarHistorico(atualizado);
+        return atualizado;
+      });
+      setToasts((prev) => prev.filter((t) => t.uid !== notif.uid));
+      setPainelNotifAberto(false);
+      setMostrarLanding(false);
+      setAba(notif.aba);
+    };
+
+    const marcarTodasComoLidas = () => {
+      setHistoricoNotif((prev) => {
+        const atualizado = prev.map((item) => ({ ...item, lida: true }));
+        notifService.salvarHistorico(atualizado);
+        return atualizado;
+      });
+    };
 
     const autenticarRepresentante = async (abrirPainelAposLogin = false) => {
       if (isEditor) {
@@ -276,7 +323,7 @@
               : "Evento publicado com sucesso!"
           );
           cancelarEdicao();
-          carregarEventos();
+          sincronizarTudo();
         } else {
           const erro = await resposta.json();
           alert("Erro: " + (erro.error || "Erro desconhecido"));
@@ -292,7 +339,7 @@
         const resposta = await api.deletarProva(id, senhaEditor);
         if (resposta.ok) {
           if (editandoId === id) cancelarEdicao();
-          carregarEventos();
+          sincronizarTudo();
         } else {
           const erro = await resposta.json();
           alert("Erro ao deletar: " + (erro.error || "Erro"));
@@ -319,7 +366,7 @@
           setNomeMaterial("");
           setDisciplina("");
           setArquivoPDF(null);
-          carregarMateriais();
+          sincronizarTudo();
         } else {
           const erro = await resposta.json();
           alert("Erro ao salvar o material: " + (erro.error || "Erro"));
@@ -335,7 +382,7 @@
       if (!confirm("Tem certeza que deseja excluir?")) return;
       try {
         const resposta = await api.deletarMaterial(id, senhaEditor);
-        if (resposta.ok) carregarMateriais();
+        if (resposta.ok) sincronizarTudo();
         else {
           const erro = await resposta.json();
           alert("Erro ao deletar material: " + (erro.error || "Erro"));
@@ -366,7 +413,7 @@
           setEditalLink("");
           setEditalPrazo("");
           setEditalFoto(null);
-          carregarEditais();
+          sincronizarTudo();
         } else {
           const erro = await resposta.json();
           alert("Erro ao publicar edital: " + (erro.error || "Erro"));
@@ -382,7 +429,7 @@
       if (!confirm("Tem certeza que deseja apagar este edital?")) return;
       try {
         const resposta = await api.deletarEdital(id, senhaEditor);
-        if (resposta.ok) carregarEditais();
+        if (resposta.ok) sincronizarTudo();
         else {
           const erro = await resposta.json();
           alert("Erro ao deletar edital: " + (erro.error || "Erro"));
@@ -417,7 +464,7 @@
         if (resposta.ok) {
           setForumNome("");
           setForumTexto("");
-          carregarForum();
+          sincronizarTudo();
         } else {
           const erro = await resposta.json();
           setForumErro(erro.error || "Erro ao publicar. Tente novamente.");
@@ -433,7 +480,7 @@
       if (!confirm("Tem certeza que deseja apagar esta sugestão?")) return;
       try {
         const resposta = await api.deletarForum(id, senhaEditor);
-        if (resposta.ok) carregarForum();
+        if (resposta.ok) sincronizarTudo();
         else {
           const erro = await resposta.json();
           alert("Erro ao deletar: " + (erro.error || "Erro"));
@@ -556,21 +603,6 @@
       [eventos]
     );
 
-    if (mostrarLanding) {
-      return (
-        <LandingPage
-          onEntrar={(abaDestino = "dashboard") => {
-            setAba(abaDestino);
-            setMostrarLanding(false);
-          }}
-          onEntrarRepresentante={() => autenticarRepresentante(true)}
-          totalEventos={eventos.length}
-          totalEditais={editais.length}
-          totalMateriais={materiais.length}
-        />
-      );
-    }
-
     const slotsMatutino = gradeHoraria.slots.filter(
       (s) => s.turno === "Matutino"
     );
@@ -588,11 +620,150 @@
       );
     };
 
+    const overlaysNotificacao = (
+      <>
+        {/* Central de Notificações (Modal) */}
+        {painelNotifAberto && (
+          <div
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setPainelNotifAberto(false)}
+          >
+            <div
+              className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 space-y-4 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-white text-base">
+                    Central de Avisos
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Provas, editais, eventos e materiais recentes
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {naoLidas > 0 && (
+                    <button
+                      onClick={marcarTodasComoLidas}
+                      className="text-xs text-emerald-400 hover:underline"
+                    >
+                      Marcar lidas
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setPainelNotifAberto(false)}
+                    className="text-slate-400 hover:text-white px-2 py-1 text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+
+              {permissaoNativa === "default" && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between gap-3">
+                  <span className="text-xs text-emerald-200">
+                    Ative alertas no navegador para ser avisado mesmo em outras
+                    abas.
+                  </span>
+                  <button
+                    onClick={ativarNotificacoesNavegador}
+                    className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg"
+                  >
+                    Ativar
+                  </button>
+                </div>
+              )}
+
+              {historicoNotif.length > 0 ? (
+                <AnimatedList
+                  items={historicoNotif.map((n) => ({
+                    ...n,
+                    title: n.titulo,
+                    description: n.descricao,
+                    meta: n.lida ? "Lida" : "Novo",
+                  }))}
+                  onItemSelect={(item) => abrirNotificacao(item)}
+                  animation="pop"
+                  theme="dark"
+                  accentColor="#10b981"
+                  width="100%"
+                  maxHeight={340}
+                  radius={12}
+                  gap={8}
+                  frame={false}
+                />
+              ) : (
+                <p className="text-center text-slate-500 text-sm py-8">
+                  Nenhuma notificação registrada ainda.
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Toasts Flutuantes */}
+        {toasts.length > 0 && (
+          <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
+            {toasts.map((t) => (
+              <div
+                key={t.uid}
+                onClick={() => abrirNotificacao(t)}
+                className="pointer-events-auto cursor-pointer bg-slate-900/95 border border-emerald-500/40 rounded-2xl p-4 shadow-2xl backdrop-blur-md flex items-start justify-between gap-3 hover:border-emerald-400 transition"
+              >
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                    Nova Publicação
+                  </span>
+                  <div className="text-sm font-semibold text-white truncate mt-0.5">
+                    {t.titulo}
+                  </div>
+                  <div className="text-xs text-slate-400 truncate mt-0.5">
+                    {t.descricao}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setToasts((prev) =>
+                      prev.filter((item) => item.uid !== t.uid)
+                    );
+                  }}
+                  className="text-slate-500 hover:text-white text-xs p-1"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </>
+    );
+
+    if (mostrarLanding) {
+      return (
+        <>
+          <LandingPage
+            onEntrar={(abaDestino = "dashboard") => {
+              setAba(abaDestino);
+              setMostrarLanding(false);
+            }}
+            onEntrarRepresentante={() => autenticarRepresentante(true)}
+            onAbrirNotificacoes={() => setPainelNotifAberto(true)}
+            naoLidas={naoLidas}
+            totalEventos={eventos.length}
+            totalEditais={editais.length}
+            totalMateriais={materiais.length}
+          />
+          {overlaysNotificacao}
+        </>
+      );
+    }
+
     return (
       <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
         <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0">
           <div>
-            <div className="flex flex-col items-center text-center mb-5">
+            <div className="flex flex-col items-center text-center mb-4">
               <button
                 onClick={() => setMostrarLanding(true)}
                 title="Voltar para a página inicial"
@@ -607,6 +778,28 @@
               <span className="text-xs text-slate-400">
                 2º Téc. Informática • IF Goiano
               </span>
+            </div>
+
+            {/* Botão do Sininho de Notificações */}
+            <div className="mb-4">
+              <button
+                onClick={() => setPainelNotifAberto((v) => !v)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-emerald-500/40 transition text-xs"
+              >
+                <span className="flex items-center gap-2 font-semibold text-slate-200">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
+                  Notificações
+                </span>
+                {naoLidas > 0 ? (
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold text-[11px]">
+                    {naoLidas}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 text-[11px]">Em dia</span>
+                )}
+              </button>
             </div>
 
             <AnimatedList
@@ -1200,6 +1393,8 @@
             </div>
           )}
         </main>
+
+        {overlaysNotificacao}
       </div>
     );
   }
