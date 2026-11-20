@@ -45,15 +45,854 @@
         background-color: #047857;
         border-color: #047857;
       }
+
+      /* --- ANIMATED LIST (React Bits) --- */
+      .animated-list {
+        position: relative;
+        width: min(100%, var(--al-width));
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        border-radius: calc(var(--al-radius) + 12px);
+        color: var(--al-ink);
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .animated-list--framed {
+        padding: 6px;
+        background: var(--al-frame);
+        box-shadow: var(--al-frame-shadow);
+        -webkit-backdrop-filter: blur(20px) saturate(1.6);
+        backdrop-filter: blur(20px) saturate(1.6);
+      }
+
+      .animated-list:has(> .animated-list__viewport:focus-visible) {
+        outline: 2px solid var(--al-accent);
+        outline-offset: 3px;
+      }
+
+      .animated-list__frame-rim {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border-radius: inherit;
+        box-shadow:
+          inset 0 0 0 1px var(--al-frame-edge),
+          inset 0 1px 0 var(--al-frame-highlight);
+        pointer-events: none;
+      }
+
+      .animated-list__viewport {
+        --al-fade-top: 0px;
+        --al-fade-bottom: 0px;
+        position: relative;
+        box-sizing: border-box;
+        padding: 4px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-radius: calc(var(--al-radius) + 6px);
+        outline: none;
+        scrollbar-width: thin;
+        scrollbar-color: var(--al-thumb) transparent;
+      }
+
+      .animated-list__viewport::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .animated-list__viewport::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .animated-list__viewport::-webkit-scrollbar-thumb {
+        border-radius: 3px;
+        background: var(--al-thumb);
+      }
+
+      .animated-list__viewport--bare {
+        scrollbar-width: none;
+      }
+
+      .animated-list__viewport--bare::-webkit-scrollbar {
+        display: none;
+      }
+
+      .animated-list__track {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: var(--al-gap);
+      }
+
+      .animated-list__item {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        padding: 10px 14px 10px 10px;
+        box-sizing: border-box;
+        border-radius: var(--al-radius);
+        background: var(--al-tile);
+        box-shadow: var(--al-tile-shadow);
+        color: var(--al-ink);
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      .animated-list[data-animated] .animated-list__item:not([data-state]) {
+        opacity: 0;
+      }
+
+      @media (hover: hover) {
+        .animated-list__item:hover {
+          filter: var(--al-hover);
+        }
+      }
+
+      .animated-list__item[data-selected]:not(:active) {
+        filter: var(--al-active);
+      }
+
+      .animated-list__item:active {
+        filter: var(--al-press);
+      }
+
+      .animated-list__lead {
+        display: grid;
+        place-items: center;
+        flex: none;
+        width: 36px;
+        height: 36px;
+        overflow: hidden;
+        border-radius: max(8px, calc(var(--al-radius) - 4px));
+        background: var(--al-well);
+        color: var(--al-ink);
+      }
+
+      .animated-list__lead img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .animated-list__text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .animated-list__title {
+        overflow: hidden;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .animated-list__description {
+        overflow: hidden;
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--al-muted);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .animated-list__meta {
+        flex: none;
+        font-size: 11.5px;
+        font-variant-numeric: tabular-nums;
+        color: var(--al-muted);
+      }
+
+      .animated-list__rim {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow:
+          inset 0 0 0 1px var(--al-tile-edge),
+          inset 0 1px 0 var(--al-tile-highlight);
+        pointer-events: none;
+      }
+
+      .animated-list__indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 2;
+        height: 0;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease;
+      }
+
+      .animated-list__ring {
+        position: absolute;
+        inset: 0;
+        border-radius: var(--al-radius);
+        background: var(--al-ring-fill);
+        box-shadow: inset 0 0 0 1px var(--al-ring);
+      }
     </style>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased font-sans">
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect, useRef, useMemo } = React;
+      const { useState, useEffect, useLayoutEffect, useRef, useMemo, useId } = React;
 
-      // --- COMPONENTE BLUR TEXT (Efeito Tilt 3D por letra com Web Animations API) ---
+      // --- COMPONENTE ANIMATED LIST ---
+      const useIsomorphicLayoutEffect =
+        typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+      const AL_THEMES = {
+        dark: {
+          "--al-frame": "rgba(15, 23, 42, 0.72)",
+          "--al-frame-edge": "rgba(255, 255, 255, 0.08)",
+          "--al-frame-highlight": "rgba(255, 255, 255, 0.07)",
+          "--al-frame-shadow":
+            "0 22px 44px -20px rgba(0, 0, 0, 0.8), 0 6px 16px -8px rgba(0, 0, 0, 0.5)",
+          "--al-tile": "linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.96) 100%)",
+          "--al-tile-edge": "rgba(255, 255, 255, 0.07)",
+          "--al-tile-highlight": "rgba(255, 255, 255, 0.1)",
+          "--al-tile-shadow": "0 4px 10px -4px rgba(0, 0, 0, 0.65)",
+          "--al-well": "rgba(16, 185, 129, 0.1)",
+          "--al-ink": "#f4f4f5",
+          "--al-muted": "rgba(203, 213, 225, 0.65)",
+          "--al-thumb": "rgba(255, 255, 255, 0.16)",
+          "--al-ring": "rgba(16, 185, 129, 0.55)",
+          "--al-ring-fill": "rgba(16, 185, 129, 0.08)",
+          "--al-hover": "brightness(1.12)",
+          "--al-press": "brightness(0.9)",
+          "--al-active": "brightness(1.15)",
+        },
+        light: {
+          "--al-frame": "rgba(240, 240, 243, 0.8)",
+          "--al-frame-edge": "rgba(24, 24, 27, 0.07)",
+          "--al-frame-highlight": "rgba(255, 255, 255, 0.95)",
+          "--al-frame-shadow":
+            "0 22px 44px -22px rgba(24, 24, 27, 0.3), 0 6px 16px -10px rgba(24, 24, 27, 0.16)",
+          "--al-tile": "linear-gradient(180deg, #ffffff 0%, #f6f6f8 100%)",
+          "--al-tile-edge": "rgba(24, 24, 27, 0.08)",
+          "--al-tile-highlight": "rgba(255, 255, 255, 1)",
+          "--al-tile-shadow": "0 4px 10px -5px rgba(24, 24, 27, 0.25)",
+          "--al-well": "rgba(24, 24, 27, 0.05)",
+          "--al-ink": "#27272a",
+          "--al-muted": "rgba(39, 39, 42, 0.55)",
+          "--al-thumb": "rgba(24, 24, 27, 0.16)",
+          "--al-ring": "rgba(24, 24, 27, 0.28)",
+          "--al-ring-fill": "transparent",
+          "--al-hover": "brightness(0.97)",
+          "--al-press": "brightness(0.92)",
+          "--al-active": "none",
+        },
+      };
+
+      const AL_HIDDEN = {
+        pop: {
+          above: "translate3d(0, -12px, 0) scale(0.8)",
+          below: "translate3d(0, 12px, 0) scale(0.8)",
+        },
+        slide: {
+          above: "translate3d(0, -28px, 0) scale(0.98)",
+          below: "translate3d(0, 28px, 0) scale(0.98)",
+        },
+        fade: {
+          above: "translate3d(0, -4px, 0)",
+          below: "translate3d(0, 4px, 0)",
+        },
+      };
+
+      const AL_SPRING =
+        "linear(0, 0.0603, 0.2033, 0.3821, 0.5633, 0.7258, 0.8584, 0.9574, 1.0242, 1.0634, 1.0809, 1.0828, 1.0747, 1.0613, 1.046, 1.0313, 1.0186, 1.0085, 1.0012, 0.9965, 0.994, 0.9931, 0.9933, 0.9941, 0.9953, 0.9966, 0.9978, 0.9988, 1)";
+
+      const alSmootherstep = (t) => t * t * t * (t * (t * 6 - 15) + 10);
+
+      const AL_FADE_MASK = (() => {
+        const steps = [0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1];
+        const top = steps.map(
+          (t) =>
+            `rgba(0, 0, 0, ${alSmootherstep(t).toFixed(3)}) calc(var(--al-fade-top) * ${t})`
+        );
+        const bottom = [...steps]
+          .reverse()
+          .map(
+            (t) =>
+              `rgba(0, 0, 0, ${alSmootherstep(t).toFixed(3)}) calc(100% - var(--al-fade-bottom) * ${t})`
+          );
+        return `linear-gradient(to bottom, ${[...top, ...bottom].join(", ")})`;
+      })();
+
+      const alSize = (value) => (typeof value === "number" ? `${value}px` : value);
+
+      function AnimatedList({
+        items = [],
+        onItemSelect,
+        renderItem,
+        initialSelectedIndex = -1,
+        selectedIndex,
+        selectOnHover = true,
+        enableArrowNavigation = true,
+        loop = false,
+        animation = "pop",
+        animateOnce = false,
+        stagger = 0.05,
+        showGradients = true,
+        fadeSize = 40,
+        displayScrollbar = true,
+        frame = true,
+        theme = "dark",
+        accentColor = "#10b981",
+        radius = 14,
+        gap = 8,
+        width = 420,
+        maxHeight = 440,
+        className = "",
+        itemClassName = "",
+        style,
+      }) {
+        const rootRef = useRef(null);
+        const viewportRef = useRef(null);
+        const trackRef = useRef(null);
+        const indicatorRef = useRef(null);
+        const ringRef = useRef(null);
+        const itemRefs = useRef([]);
+        const engineRef = useRef(null);
+        const keyboardRef = useRef(false);
+        const navigatingRef = useRef(false);
+        const [internalSelected, setInternalSelected] = useState(initialSelectedIndex);
+        const selected = selectedIndex !== undefined ? selectedIndex : internalSelected;
+        const setSelected = (idx) => {
+          if (selectedIndex === undefined) setInternalSelected(idx);
+        };
+
+        useEffect(() => {
+          if (selectedIndex !== undefined) {
+            setInternalSelected(selectedIndex);
+          }
+        }, [selectedIndex]);
+
+        const baseId = useId();
+        const settings = {
+          items,
+          onItemSelect,
+          selected,
+          selectOnHover,
+          enableArrowNavigation,
+          loop,
+          animation,
+          animateOnce,
+          stagger,
+          showGradients,
+          fadeSize,
+        };
+        const settingsRef = useRef(settings);
+        settingsRef.current = settings;
+
+        useIsomorphicLayoutEffect(() => {
+          const root = rootRef.current;
+          const viewport = viewportRef.current;
+          const track = trackRef.current;
+          const indicator = indicatorRef.current;
+          const ring = ringRef.current;
+          if (!root || !viewport || !track || !indicator || !ring) return;
+
+          const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          const springEase = CSS.supports?.("transition-timing-function", "linear(0, 1)")
+            ? AL_SPRING
+            : "cubic-bezier(0.34, 1.4, 0.64, 1)";
+          const transition = `transform 620ms ${springEase}, opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms ease`;
+          const motion = { y: 0, h: 0, vy: 0, vh: 0, ty: 0, th: 0, ready: false };
+          const fades = { top: "", bottom: "" };
+          let boxes = [];
+          let current = null;
+          let entered = false;
+          let engaged = false;
+          let pointer = [0, 0];
+          let raf = 0;
+          let last = 0;
+
+          const mode = () => {
+            const chosen = settingsRef.current.animation;
+            if (chosen === "none" || !AL_HIDDEN[chosen]) return "none";
+            return reduced ? "fade" : chosen;
+          };
+
+          const apply = (element, state) => {
+            element.dataset.state = state;
+            const pose =
+              current && current !== "none" && state !== "in"
+                ? AL_HIDDEN[current][state]
+                : "";
+            element.style.transform = pose;
+            element.style.opacity = pose ? "0" : "";
+          };
+
+          const syncRing = () => {
+            const item = itemRefs.current[settingsRef.current.selected];
+            if (!item) return;
+            const state = item.dataset.state || "in";
+            if (state === ring.dataset.state) return;
+            ring.style.transitionDelay = item.style.transitionDelay;
+            apply(ring, state);
+          };
+
+          const write = () => {
+            indicator.style.transform = `translate3d(0, ${motion.y.toFixed(2)}px, 0)`;
+            indicator.style.height = `${motion.h.toFixed(2)}px`;
+          };
+
+          const frameLoop = (now) => {
+            raf = 0;
+            const dt = Math.min(0.05, (now - last) / 1000 || 0);
+            last = now;
+            const omega = 30;
+            const zeta = 0.78;
+            const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
+            const h = dt / steps;
+            for (let i = 0; i < steps; i++) {
+              motion.vy +=
+                (omega * omega * (motion.ty - motion.y) - 2 * zeta * omega * motion.vy) *
+                h;
+              motion.vh +=
+                (omega * omega * (motion.th - motion.h) - 2 * zeta * omega * motion.vh) *
+                h;
+              motion.y += motion.vy * h;
+              motion.h += motion.vh * h;
+            }
+            const moving =
+              Math.abs(motion.ty - motion.y) > 0.05 ||
+              Math.abs(motion.th - motion.h) > 0.05 ||
+              Math.abs(motion.vy) + Math.abs(motion.vh) > 0.5;
+            if (!moving) {
+              motion.y = motion.ty;
+              motion.h = motion.th;
+              motion.vy = motion.vh = 0;
+            }
+            write();
+            if (moving) raf = requestAnimationFrame(frameLoop);
+          };
+
+          const place = (snap) => {
+            const item = itemRefs.current[settingsRef.current.selected];
+            if (!item) {
+              indicator.style.opacity = "0";
+              motion.ready = false;
+              return;
+            }
+            indicator.style.opacity = "1";
+            motion.ty = item.offsetTop;
+            motion.th = item.offsetHeight;
+            if (snap || reduced || !motion.ready) {
+              motion.y = motion.ty;
+              motion.h = motion.th;
+              motion.vy = motion.vh = 0;
+              motion.ready = true;
+              write();
+              return;
+            }
+            if (!raf) {
+              last = performance.now();
+              raf = requestAnimationFrame(frameLoop);
+            }
+          };
+
+          const updateFades = () => {
+            const s = settingsRef.current;
+            const span = Math.max(1, s.fadeSize);
+            const { scrollTop, scrollHeight, clientHeight } = viewport;
+            const top = s.showGradients ? Math.min(span, Math.max(0, scrollTop)) : 0;
+            const bottom = s.showGradients
+              ? Math.min(span, Math.max(0, scrollHeight - clientHeight - scrollTop))
+              : 0;
+            const nextTop = `${top.toFixed(1)}px`;
+            const nextBottom = `${bottom.toFixed(1)}px`;
+            if (nextTop !== fades.top) {
+              fades.top = nextTop;
+              viewport.style.setProperty("--al-fade-top", nextTop);
+            }
+            if (nextBottom !== fades.bottom) {
+              fades.bottom = nextBottom;
+              viewport.style.setProperty("--al-fade-bottom", nextBottom);
+            }
+          };
+
+          const measure = () => {
+            const offset = track.offsetTop;
+            boxes = itemRefs.current.map((item) =>
+              item ? [offset + item.offsetTop, item.offsetHeight] : null
+            );
+          };
+
+          const reveal = (entrance) => {
+            if (!entered) return;
+            const s = settingsRef.current;
+            const top = viewport.scrollTop;
+            const view = viewport.clientHeight;
+            let order = 0;
+            itemRefs.current.forEach((item, index) => {
+              const box = boxes[index];
+              if (!item || !box) return;
+              const start = box[0] - top;
+              const overlap = Math.min(view, start + box[1]) - Math.max(0, start);
+              const hidden =
+                current !== "none" &&
+                overlap < Math.min(box[1], view) * 0.5 &&
+                !(s.animateOnce && item.dataset.seen);
+              const state = hidden
+                ? start + box[1] / 2 < view / 2
+                  ? "above"
+                  : "below"
+                : "in";
+              if (state === item.dataset.state) return;
+              const delay =
+                entrance && !hidden
+                  ? (order++ * Math.max(0, s.stagger)).toFixed(3)
+                  : 0;
+              item.style.transitionDelay = delay ? `${delay}s, ${delay}s, 0s` : "";
+              if (!hidden) item.dataset.seen = "true";
+              apply(item, state);
+            });
+            syncRing();
+          };
+
+          const sync = () => {
+            const s = settingsRef.current;
+            itemRefs.current.length = s.items.length;
+            const itemsList = itemRefs.current.filter(Boolean);
+            const next = mode();
+            const changed = next !== current;
+            const restyle = changed
+              ? itemsList
+              : itemsList.filter((item) => !item.dataset.state);
+            current = next;
+            if (current === "none") entered = true;
+            if (restyle.length) {
+              const elements = changed ? [...restyle, ring] : restyle;
+              for (const element of elements) element.style.transition = "none";
+              for (const item of restyle)
+                apply(item, current === "none" ? "in" : item.dataset.state || "below");
+              if (changed)
+                apply(ring, itemRefs.current[s.selected]?.dataset.state || "in");
+              void root.offsetHeight;
+              for (const element of elements) element.style.transition = transition;
+            }
+            measure();
+            reveal(restyle.length > 0);
+          };
+
+          sync();
+
+          const gate =
+            typeof IntersectionObserver === "undefined"
+              ? null
+              : new IntersectionObserver(
+                  (entries, observer) => {
+                    if (!entries.some((entry) => entry.isIntersecting)) return;
+                    observer.disconnect();
+                    if (entered) return;
+                    entered = true;
+                    measure();
+                    reveal(true);
+                  },
+                  { rootMargin: "0px 0px -5% 0px" }
+                );
+          if (!entered) {
+            if (gate) gate.observe(root);
+            else {
+              entered = true;
+              reveal(true);
+            }
+          }
+
+          const resizeObserver = new ResizeObserver(() => {
+            place(true);
+            updateFades();
+            measure();
+            reveal(false);
+          });
+          resizeObserver.observe(viewport);
+          resizeObserver.observe(track);
+
+          const onScroll = () => {
+            updateFades();
+            reveal(false);
+          };
+
+          const onKey = (event) => {
+            const s = settingsRef.current;
+            if (!s.enableArrowNavigation || event.defaultPrevented) return;
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            const active = document.activeElement;
+            const focused = active === viewport;
+            const idle =
+              !active ||
+              active === document.body ||
+              active === document.documentElement;
+            if (!focused && !(engaged && idle)) return;
+            const count = s.items.length;
+            if (!count) return;
+            const index = s.selected;
+            let next = null;
+            if (event.key === "ArrowDown") next = index < 0 ? 0 : index + 1;
+            else if (event.key === "ArrowUp")
+              next = index < 0 ? count - 1 : index - 1;
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = count - 1;
+            else if (
+              (event.key === "Enter" || (focused && event.key === " ")) &&
+              index >= 0 &&
+              index < count
+            ) {
+              event.preventDefault();
+              s.onItemSelect?.(s.items[index], index);
+              return;
+            }
+            if (next === null) return;
+            event.preventDefault();
+            next = s.loop
+              ? (next + count) % count
+              : Math.min(count - 1, Math.max(0, next));
+            keyboardRef.current = true;
+            navigatingRef.current = true;
+            setInternalSelected(next);
+            s.onItemSelect?.(s.items[next], next);
+          };
+
+          const onPointerMove = (event) => {
+            const moved =
+              event.clientX !== pointer[0] || event.clientY !== pointer[1];
+            pointer = [event.clientX, event.clientY];
+            if (!navigatingRef.current || !moved) return;
+            navigatingRef.current = false;
+            const item =
+              event.target instanceof Element
+                ? event.target.closest("[data-index]")
+                : null;
+            if (
+              item &&
+              root.contains(item) &&
+              settingsRef.current.selectOnHover
+            )
+              setInternalSelected(Number(item.dataset.index));
+          };
+
+          const onEnter = () => {
+            engaged = true;
+          };
+          const onLeave = () => {
+            engaged = false;
+            if (selectedIndex !== undefined) {
+              setInternalSelected(selectedIndex);
+            }
+          };
+
+          viewport.addEventListener("scroll", onScroll, { passive: true });
+          window.addEventListener("keydown", onKey);
+          root.addEventListener("pointerenter", onEnter);
+          root.addEventListener("pointerleave", onLeave);
+          root.addEventListener("pointermove", onPointerMove);
+
+          updateFades();
+          place(true);
+          syncRing();
+
+          engineRef.current = { place, syncRing, updateFades, sync };
+
+          return () => {
+            cancelAnimationFrame(raf);
+            gate?.disconnect();
+            resizeObserver.disconnect();
+            viewport.removeEventListener("scroll", onScroll);
+            window.removeEventListener("keydown", onKey);
+            root.removeEventListener("pointerenter", onEnter);
+            root.removeEventListener("pointerleave", onLeave);
+            root.removeEventListener("pointermove", onPointerMove);
+            engineRef.current = null;
+          };
+        }, []);
+
+        useIsomorphicLayoutEffect(() => {
+          engineRef.current?.sync();
+        }, [items, animation]);
+
+        useEffect(() => {
+          const engine = engineRef.current;
+          if (!engine) return;
+          engine.place(false);
+          engine.syncRing();
+          if (!keyboardRef.current) return;
+          keyboardRef.current = false;
+          const viewport = viewportRef.current;
+          const track = trackRef.current;
+          const item = itemRefs.current[internalSelected];
+          if (!viewport || !track || !item) return;
+          const top = track.offsetTop + item.offsetTop;
+          const bottom = top + item.offsetHeight;
+          const room = Math.max(
+            0,
+            (viewport.clientHeight - item.offsetHeight) / 2
+          );
+          const margin = Math.min(
+            showGradients ? Math.max(12, fadeSize) : 12,
+            room
+          );
+          if (top < viewport.scrollTop + margin) {
+            viewport.scrollTo({
+              top: Math.max(0, top - margin),
+              behavior: "smooth",
+            });
+          } else if (
+            bottom >
+            viewport.scrollTop + viewport.clientHeight - margin
+          ) {
+            viewport.scrollTo({
+              top: bottom - viewport.clientHeight + margin,
+              behavior: "smooth",
+            });
+          }
+        }, [internalSelected, fadeSize, showGradients]);
+
+        useEffect(() => {
+          engineRef.current?.updateFades();
+        }, [showGradients, fadeSize, maxHeight, gap]);
+
+        const hover = (index) => {
+          if (!navigatingRef.current) setInternalSelected(index);
+        };
+
+        const choose = (item, index) => {
+          setInternalSelected(index);
+          onItemSelect?.(item, index);
+        };
+
+        const activeIndex = internalSelected;
+
+        return (
+          <div
+            ref={rootRef}
+            className={`animated-list${frame ? " animated-list--framed" : ""} ${className}`.trim()}
+            data-animated={animation !== "none" ? "" : undefined}
+            style={{
+              ...(AL_THEMES[theme] ?? AL_THEMES.dark),
+              "--al-radius": `${Math.max(0, radius)}px`,
+              "--al-gap": `${Math.max(0, gap)}px`,
+              "--al-width": alSize(width),
+              "--al-accent": accentColor || "var(--al-ink)",
+              ...(accentColor
+                ? {
+                    "--al-ring": accentColor,
+                    "--al-ring-fill": `color-mix(in srgb, ${accentColor} 10%, transparent)`,
+                  }
+                : {}),
+              ...style,
+            }}
+          >
+            <div
+              ref={viewportRef}
+              className={`animated-list__viewport${displayScrollbar ? "" : " animated-list__viewport--bare"}`}
+              role="listbox"
+              tabIndex={0}
+              aria-activedescendant={
+                activeIndex >= 0 && activeIndex < items.length
+                  ? `${baseId}-${activeIndex}`
+                  : undefined
+              }
+              style={{
+                maxHeight: alSize(maxHeight),
+                maskImage: showGradients ? AL_FADE_MASK : undefined,
+                WebkitMaskImage: showGradients ? AL_FADE_MASK : undefined,
+              }}
+            >
+              <div ref={trackRef} className="animated-list__track">
+                {items.map((item, index) => {
+                  const entry =
+                    item !== null && typeof item === "object"
+                      ? item
+                      : { title: item };
+                  const isSelected = index === activeIndex;
+                  return (
+                    <div
+                      key={entry.id ?? index}
+                      ref={(element) => {
+                        itemRefs.current[index] = element;
+                      }}
+                      id={`${baseId}-${index}`}
+                      className={`animated-list__item ${itemClassName}`.trim()}
+                      role="option"
+                      aria-selected={isSelected}
+                      data-index={index}
+                      data-selected={isSelected ? "" : undefined}
+                      onPointerEnter={selectOnHover ? () => hover(index) : undefined}
+                      onClick={() => choose(item, index)}
+                    >
+                      {renderItem ? (
+                        renderItem(item, index, isSelected)
+                      ) : (
+                        <>
+                          {(entry.image || entry.icon) && (
+                            <span
+                              className="animated-list__lead"
+                              style={entry.iconStyle}
+                            >
+                              {entry.image ? (
+                                <img
+                                  src={entry.image}
+                                  alt=""
+                                  draggable={false}
+                                />
+                              ) : (
+                                entry.icon
+                              )}
+                            </span>
+                          )}
+                          <span className="animated-list__text">
+                            <span className="animated-list__title">
+                              {entry.title}
+                            </span>
+                            {entry.description && (
+                              <span className="animated-list__description">
+                                {entry.description}
+                              </span>
+                            )}
+                          </span>
+                          {entry.meta && (
+                            <span className="animated-list__meta">
+                              {entry.meta}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      <span className="animated-list__rim" aria-hidden="true" />
+                    </div>
+                  );
+                })}
+                <span
+                  ref={indicatorRef}
+                  className="animated-list__indicator"
+                  aria-hidden="true"
+                >
+                  <span ref={ringRef} className="animated-list__ring" />
+                </span>
+              </div>
+            </div>
+            {frame && (
+              <span className="animated-list__frame-rim" aria-hidden="true" />
+            )}
+          </div>
+        );
+      }
+
+      // --- COMPONENTE BLUR TEXT ---
       function BlurText({
         text = "",
         highlightWord = "",
@@ -320,7 +1159,7 @@
         );
       }
 
-      // --- COMPONENTE METALLIC PAINT (WebGL com injeção de dimensões no SVG) ---
+      // --- COMPONENTE METALLIC PAINT ---
       function MetallicPaint({
         imageSrc,
         color = "#06b37a",
@@ -799,7 +1638,6 @@
                       }}
                       className="group relative cursor-pointer rounded-2xl p-6 bg-gradient-to-b from-slate-900/90 to-slate-900/40 border border-slate-800/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-out hover:-translate-y-2 hover:border-emerald-500/40 hover:shadow-[0_20px_40px_-15px_rgba(16,185,129,0.18),inset_0_1px_0_0_rgba(16,185,129,0.2)]"
                     >
-                      {/* Brilho sutil no topo ao passar o mouse */}
                       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                       <div className="flex items-center justify-between mb-5">
@@ -1456,6 +2294,131 @@
           }
         };
 
+        // --- ITENS DO MENU LATERAL (AnimatedList) ---
+        const menuAbas = useMemo(
+          () => [
+            {
+              id: "dashboard",
+              title: "Painel Principal",
+              description: "Provas e tarefas",
+              meta: eventos.length > 0 ? `${eventos.length}` : undefined,
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                </svg>
+              ),
+            },
+            {
+              id: "grade",
+              title: "Grade Horária",
+              description: "Aulas e docentes",
+              meta: "Seg-Sex",
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+              ),
+            },
+            {
+              id: "editais",
+              title: "Editais de Projetos",
+              description: "Pesquisa e extensão",
+              meta: editais.length > 0 ? `${editais.length}` : undefined,
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                </svg>
+              ),
+            },
+            {
+              id: "materiais",
+              title: "Materiais & PDFs",
+              description: "Apostilas e listas",
+              meta: materiais.length > 0 ? `${materiais.length}` : undefined,
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+              ),
+            },
+            {
+              id: "calendario",
+              title: "Calendário",
+              description: "Visão mensal",
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+              ),
+            },
+            {
+              id: "forum",
+              title: "Fórum",
+              description: "Sugestões da turma",
+              meta: forumPosts.length > 0 ? `${forumPosts.length}` : undefined,
+              icon: (
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                </svg>
+              ),
+            },
+          ],
+          [eventos.length, editais.length, materiais.length, forumPosts.length]
+        );
+
+        const indiceAbaAtiva = useMemo(
+          () => menuAbas.findIndex((m) => m.id === aba),
+          [menuAbas, aba]
+        );
+
+        // --- ITENS DO MURAL DE ATIVIDADES (AnimatedList) ---
+        const itensMural = useMemo(() => {
+          const hoje = new Date();
+          hoje.setHours(0, 0, 0, 0);
+
+          return eventos.map((evt) => {
+            const dataAlvo = new Date(`${(evt.start || "").slice(0, 10)}T00:00:00`);
+            const diffDias = Math.round((dataAlvo - hoje) / (1000 * 60 * 60 * 24));
+            let contagem = evt.start;
+            if (!isNaN(diffDias)) {
+              if (diffDias === 0) contagem = "Hoje";
+              else if (diffDias === 1) contagem = "Amanhã";
+              else if (diffDias > 1) contagem = `Em ${diffDias}d • ${evt.start}`;
+            }
+
+            const isProva = evt.tipo === "prova";
+            const isDever = evt.tipo === "dever";
+
+            return {
+              ...evt,
+              title: evt.nomeOriginal,
+              description: evt.descricao,
+              meta: contagem,
+              iconStyle: {
+                backgroundColor: isProva
+                  ? "rgba(239, 68, 68, 0.14)"
+                  : isDever
+                    ? "rgba(245, 158, 11, 0.14)"
+                    : "rgba(139, 92, 246, 0.14)",
+                color: isProva ? "#f87171" : isDever ? "#fbbf24" : "#a78bfa",
+              },
+              icon: isProva ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              ) : isDever ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+              ),
+            };
+          });
+        }, [eventos]);
+
         if (mostrarLanding) {
           return (
             <LandingPage
@@ -1490,10 +2453,10 @@
 
         return (
           <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
-            {/* Sidebar */}
-            <aside className="w-full md:w-64 bg-slate-900 border-b md:border-b-0 md:border-r border-slate-800 p-6 flex flex-col justify-between">
+            {/* Sidebar com AnimatedList */}
+            <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0">
               <div>
-                <div className="flex flex-col items-center text-center mb-8">
+                <div className="flex flex-col items-center text-center mb-5">
                   <button
                     onClick={() => setMostrarLanding(true)}
                     title="Voltar para a página inicial"
@@ -1502,7 +2465,7 @@
                     <img
                       src="./lg%20IFinityHub.png"
                       alt="IFinityHub"
-                      className="w-40 h-auto object-contain mb-2 select-none"
+                      className="w-36 h-auto object-contain mb-1.5 select-none"
                     />
                   </button>
                   <span className="text-xs text-slate-400">
@@ -1510,47 +2473,30 @@
                   </span>
                 </div>
 
-                <nav className="space-y-2">
-                  <button
-                    onClick={() => setAba("dashboard")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "dashboard" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    📖 Painel Principal
-                  </button>
-                  <button
-                    onClick={() => setAba("grade")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "grade" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    📊 Grade Horária
-                  </button>
-                  <button
-                    onClick={() => setAba("editais")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "editais" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    🚀 Editais de Projetos
-                  </button>
-                  <button
-                    onClick={() => setAba("materiais")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "materiais" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    📄 Materiais & PDFs
-                  </button>
-                  <button
-                    onClick={() => setAba("calendario")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "calendario" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    📅 Calendário
-                  </button>
-                  <button
-                    onClick={() => setAba("forum")}
-                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "forum" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
-                  >
-                    💬 Fórum
-                  </button>
-                </nav>
+                <AnimatedList
+                  items={menuAbas}
+                  selectedIndex={indiceAbaAtiva}
+                  onItemSelect={(item) => setAba(item.id)}
+                  animation="pop"
+                  theme="dark"
+                  accentColor="#10b981"
+                  width="100%"
+                  maxHeight={460}
+                  radius={12}
+                  gap={7}
+                  stagger={0.04}
+                  fadeSize={28}
+                  frame={true}
+                  showGradients={false}
+                  displayScrollbar={false}
+                  selectOnHover={true}
+                  enableArrowNavigation={true}
+                  loop={true}
+                  animateOnce={true}
+                />
               </div>
 
-              <div className="mt-6 md:mt-0 space-y-2.5">
+              <div className="mt-5 md:mt-0 space-y-2 pt-4 border-t border-slate-800/70">
                 <div className="text-center text-xs text-slate-500">
                   Perfil:{" "}
                   <span className="text-slate-300 font-medium">
@@ -1559,7 +2505,7 @@
                 </div>
                 <button
                   onClick={() => autenticarRepresentante(false)}
-                  className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition ${isEditor ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}
+                  className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 ${isEditor ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"}`}
                 >
                   {isEditor ? "🔓 Modo Editor" : "🔒 Acesso Representante"}
                 </button>
@@ -1575,21 +2521,25 @@
             {/* Conteúdo */}
             <main className="flex-1 p-4 md:p-8 overflow-y-auto">
               {aba === "dashboard" && (
-                <div className="max-w-5xl mx-auto space-y-8">
-                  <header>
-                    <h2 className="text-2xl font-bold text-white mb-4">
-                      Mural de Atividades
-                    </h2>
+                <div className="max-w-5xl mx-auto space-y-6">
+                  <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-800/70 pb-4">
+                    <div>
+                      <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                        Visão Geral da Turma
+                      </span>
+                      <h2 className="text-2xl font-bold text-white mt-0.5">
+                        Mural de Atividades
+                      </h2>
+                    </div>
                     <p className="text-slate-500 text-xs">
-                      Atividades são removidas automaticamente assim que a data
-                      de prazo passa.
+                      Atividades expiradas são removidas automaticamente após o prazo.
                     </p>
                   </header>
 
                   {temPermissao("criar_provas") && (
                     <form
                       onSubmit={salvarEvento}
-                      className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4 mb-8"
+                      className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
                     >
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-emerald-400">
@@ -1649,53 +2599,85 @@
                     </form>
                   )}
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {eventos.map((evt) => (
-                      <div
-                        key={evt.id}
-                        className={`bg-slate-900 border p-4 rounded-xl flex justify-between items-center ${editandoId === evt.id ? "border-emerald-500/50" : "border-slate-800"}`}
-                      >
-                        <div>
-                          <span
-                            style={{ color: evt.color }}
-                            className="font-bold text-sm mr-2"
-                          >
-                            {evt.tipo.toUpperCase()}
-                          </span>
-                          <span className="text-white font-medium">
-                            {evt.nomeOriginal}
-                          </span>
-                          <p className="text-slate-400 text-sm mt-1">
-                            {evt.descricao}
-                          </p>
-                          <p className="text-slate-500 text-xs mt-2">
-                            Prazo: {evt.start}
-                          </p>
-                        </div>
-                        {temPermissao("editar_provas") && (
-                          <div className="flex gap-2 shrink-0 ml-4">
-                            <button
-                              onClick={() => iniciarEdicao(evt)}
-                              className="bg-blue-500/10 text-blue-400 px-3 py-1 rounded hover:bg-blue-500/20 transition"
+                  {itensMural.length > 0 ? (
+                    <AnimatedList
+                      items={itensMural}
+                      animation="pop"
+                      theme="dark"
+                      accentColor="#10b981"
+                      width="100%"
+                      maxHeight={560}
+                      radius={14}
+                      gap={10}
+                      stagger={0.05}
+                      fadeSize={40}
+                      frame={true}
+                      showGradients={true}
+                      displayScrollbar={true}
+                      selectOnHover={true}
+                      enableArrowNavigation={true}
+                      loop={false}
+                      animateOnce={false}
+                      initialSelectedIndex={-1}
+                      renderItem={(evt) => (
+                        <div className="flex items-center justify-between w-full gap-3 min-w-0">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <span
+                              className="animated-list__lead"
+                              style={evt.iconStyle}
                             >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => deletarEvento(evt.id)}
-                              className="bg-red-500/10 text-red-400 px-3 py-1 rounded hover:bg-red-500/20 transition"
-                            >
-                              Apagar
-                            </button>
+                              {evt.icon}
+                            </span>
+                            <div className="animated-list__text">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  style={{ color: evt.color }}
+                                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-950/70 border border-slate-800 shrink-0"
+                                >
+                                  {evt.tipo}
+                                </span>
+                                <span className="animated-list__title">
+                                  {evt.title}
+                                </span>
+                              </div>
+                              <span className="animated-list__description">
+                                {evt.description}
+                              </span>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    {eventos.length === 0 && (
-                      <p className="text-slate-500">
-                        Nenhuma atividade agendada.
-                      </p>
-                    )}
-                  </div>
+
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span className="animated-list__meta font-medium">
+                              {evt.meta}
+                            </span>
+                            {temPermissao("editar_provas") && (
+                              <div
+                                className="flex gap-1.5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={() => iniciarEdicao(evt)}
+                                  className="bg-blue-500/10 text-blue-400 text-xs px-2.5 py-1 rounded-lg hover:bg-blue-500/20 transition"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  onClick={() => deletarEvento(evt.id)}
+                                  className="bg-red-500/10 text-red-400 text-xs px-2.5 py-1 rounded-lg hover:bg-red-500/20 transition"
+                                >
+                                  Apagar
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    />
+                  ) : (
+                    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
+                      Nenhuma atividade agendada no momento.
+                    </div>
+                  )}
                 </div>
               )}
 
