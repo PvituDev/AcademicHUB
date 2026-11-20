@@ -1,5 +1,5 @@
 class Usuario {
-  #senha; // Encapsulamento: atributo privado
+  #senha;
 
   constructor(nome, senha = null) {
     this.nome = nome;
@@ -11,9 +11,8 @@ class Usuario {
     return this.#senha === senhaInformada;
   }
 
-  // Polimorfismo: método base que será sobrescrito nas subclasses
   obterPermissoes() {
-    return ["ler_provas", "ler_materiais", "postar_forum"];
+    return ["ler_provas", "ler_materiais", "postar_forum", "ler_editais"];
   }
 
   toJSON() {
@@ -27,17 +26,16 @@ class Usuario {
 
 class Aluno extends Usuario {
   constructor(nome, turma = "2º Téc. Informática") {
-    super(nome, null); // Construtor da classe mãe
+    super(nome, null);
     this.turma = turma;
   }
 }
 
 class Representante extends Usuario {
   constructor(nome, senhaMestra) {
-    super(nome, senhaMestra); // Construtor da classe mãe
+    super(nome, senhaMestra);
   }
 
-  // Polimorfismo: sobrescreve as permissões adicionando controle administrativo
   obterPermissoes() {
     return [
       ...super.obterPermissoes(),
@@ -46,6 +44,7 @@ class Representante extends Usuario {
       "deletar_provas",
       "publicar_materiais",
       "moderar_forum",
+      "publicar_editais",
     ];
   }
 }
