@@ -1,41 +1,13 @@
 class ConteudoPublicavel {
-  #autor; // Encapsulamento
+  #autor;
 
-  // Lista privada encapsulada na classe base
   static #PALAVRAS_BLOQUEADAS = [
-    "idiota",
-    "burro",
-    "burra",
-    "imbecil",
-    "estupido",
-    "estúpido",
-    "estupida",
-    "estúpida",
-    "otario",
-    "otário",
-    "otaria",
-    "otária",
-    "lixo",
-    "inutil",
-    "inútil",
-    "porra",
-    "merda",
-    "bosta",
-    "cretino",
-    "cretina",
-    "retardado",
-    "retardada",
-    "vagabundo",
-    "vagabunda",
-    "escroto",
-    "escrota",
-    "desgraçado",
-    "desgraçada",
-    "vadia",
-    "vadio",
-    "puta",
-    "viado",
-    "bicha",
+    "idiota", "burro", "burra", "imbecil", "estupido", "estúpido",
+    "estupida", "estúpida", "otario", "otário", "otaria", "otária",
+    "lixo", "inutil", "inútil", "porra", "merda", "bosta", "cretino",
+    "cretina", "retardado", "retardada", "vagabundo", "vagabunda",
+    "escroto", "escrota", "desgraçado", "desgraçada", "vadia",
+    "vadio", "puta", "viado", "bicha",
   ];
 
   constructor(autor) {
@@ -61,7 +33,6 @@ class ConteudoPublicavel {
     });
   }
 
-  // Polimorfismo: cada subclasse valida suas próprias regras
   validar() {
     if (ConteudoPublicavel.contemOfensa(this.#autor)) {
       throw new Error("O nome informado contém linguagem ofensiva.");
@@ -69,7 +40,6 @@ class ConteudoPublicavel {
   }
 }
 
-// Herança + Polimorfismo
 class MaterialPDF extends ConteudoPublicavel {
   constructor({
     id = null,
@@ -101,7 +71,6 @@ class MaterialPDF extends ConteudoPublicavel {
   }
 }
 
-// Herança + Polimorfismo
 class SugestaoForum extends ConteudoPublicavel {
   constructor({ id = null, nome, texto, criado_em = new Date().toISOString() }) {
     super(nome);
@@ -134,4 +103,69 @@ class SugestaoForum extends ConteudoPublicavel {
   }
 }
 
-module.exports = { ConteudoPublicavel, MaterialPDF, SugestaoForum };
+class EditalProjeto extends ConteudoPublicavel {
+  #linkFormulario;
+
+  constructor({
+    id = null,
+    titulo,
+    descricao,
+    link_formulario,
+    imagem_url = null,
+    prazo = "",
+    autor = "Representante",
+  }) {
+    super(autor);
+    this.id = id;
+    this.titulo = titulo ? titulo.trim() : "";
+    this.descricao = descricao ? descricao.trim() : "";
+    this.linkFormulario = link_formulario;
+    this.imagemUrl = imagem_url;
+    this.prazo = prazo ? prazo.trim() : "";
+  }
+
+  get linkFormulario() {
+    return this.#linkFormulario;
+  }
+
+  set linkFormulario(url) {
+    const limpo = url ? String(url).trim() : "";
+    if (!limpo) {
+      this.#linkFormulario = "";
+      return;
+    }
+    this.#linkFormulario = /^https?:\/\//i.test(limpo)
+      ? limpo
+      : `https://${limpo}`;
+  }
+
+  validar() {
+    super.validar();
+    if (!this.titulo) {
+      throw new Error("O título do edital é obrigatório.");
+    }
+    if (!this.descricao) {
+      throw new Error("As informações adicionais do edital são obrigatórias.");
+    }
+    if (!this.#linkFormulario) {
+      throw new Error("O link do formulário de inscrição é obrigatório.");
+    }
+  }
+
+  toDatabase() {
+    return {
+      titulo: this.titulo,
+      descricao: this.descricao,
+      link_formulario: this.#linkFormulario,
+      imagem_url: this.imagemUrl,
+      prazo: this.prazo || null,
+    };
+  }
+}
+
+module.exports = {
+  ConteudoPublicavel,
+  MaterialPDF,
+  SugestaoForum,
+  EditalProjeto,
+};
