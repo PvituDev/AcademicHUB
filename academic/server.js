@@ -7,7 +7,11 @@ require("dotenv").config();
 // Importação das classes POO
 const { Representante } = require("./models/Usuario");
 const { Atividade } = require("./models/Atividade");
-const { MaterialPDF, SugestaoForum } = require("./models/Conteudo");
+const {
+  MaterialPDF,
+  SugestaoForum,
+  EditalProjeto,
+} = require("./models/Conteudo");
 const { GradeHoraria } = require("./models/GradeHoraria");
 
 const app = express();
@@ -190,6 +194,93 @@ app.delete("/api/materiais/:id", verificarAutenticacao, async (req, res) => {
     if (error) throw error;
 
     res.json({ message: "Material removido com sucesso" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// ROTAS DE EDITAIS DE PROJETOS
+// ==========================================
+app.get("/api/editais", async (req, res) => {
+  const { data, error } = await supabase
+    .from("editais")
+    .select("*")
+    .order("criado_em", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post(
+  "/api/editais",
+  verificarAutenticacao,
+  upload.single("foto"),
+  async (req, res) => {
+    try {
+      const edital = new EditalProjeto({
+        titulo: req.body.titulo,
+        descricao: req.body.descricao,
+        link_formulario: req.body.link_formulario,
+        prazo: req.body.prazo,
+      });
+      edital.validar();
+
+      if (req.file) {
+        const extensao = req.file.originalname.split(".").pop();
+        const nomeArquivoUnico = `${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
+
+        const { error: storageError } = await supabase.storage
+          .from("EDITAIS_IMAGENS")
+          .upload(nomeArquivoUnico, req.file.buffer, {
+            contentType: req.file.mimetype,
+          });
+
+        if (storageError) throw storageError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from("EDITAIS_IMAGENS")
+          .getPublicUrl(nomeArquivoUnico);
+
+        edital.imagemUrl = publicUrlData.publicUrl;
+      }
+
+      const { data, error: dbError } = await supabase
+        .from("editais")
+        .insert([edital.toDatabase()])
+        .select();
+
+      if (dbError) throw dbError;
+
+      res
+        .status(201)
+        .json({ message: "Edital publicado com sucesso!", data: data[0] });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+);
+
+app.delete("/api/editais/:id", verificarAutenticacao, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: edital } = await supabase
+      .from("editais")
+      .select("imagem_url")
+      .eq("id", id)
+      .single();
+
+    if (edital && edital.imagem_url) {
+      const partesUrl = edital.imagem_url.split("/");
+      const nomeArquivo = partesUrl[partesUrl.length - 1];
+      await supabase.storage.from("EDITAIS_IMAGENS").remove([nomeArquivo]);
+    }
+
+    const { error } = await supabase.from("editais").delete().eq("id", id);
+    if (error) throw error;
+
+    res.json({ message: "Edital removido com sucesso" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
