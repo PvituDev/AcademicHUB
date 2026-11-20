@@ -5,6 +5,7 @@
     onEntrar,
     onEntrarRepresentante,
     onAbrirNotificacoes,
+    isEditor = false,
     naoLidas = 0,
     totalEventos,
     totalEditais,
@@ -115,13 +116,36 @@
 
             <button
               onClick={onEntrarRepresentante}
-              className="text-xs sm:text-sm text-slate-300 hover:text-white px-3.5 py-2 rounded-xl border border-slate-800 hover:border-slate-700 bg-slate-900/80 hover:bg-slate-800/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-black/40 active:translate-y-0"
+              className={`group text-xs sm:text-sm font-medium px-3.5 py-2 rounded-xl border transition-all duration-300 ease-out hover:-translate-y-0.5 inline-flex items-center gap-2 ${
+                isEditor
+                  ? "bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_20px_-5px_rgba(245,158,11,0.35)]"
+                  : "text-slate-300 hover:text-white border-slate-800 hover:border-emerald-500/40 bg-slate-900/90 hover:bg-slate-800/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)] hover:shadow-lg hover:shadow-black/40"
+              }`}
             >
-              🔒 Representante
+              <span className="relative flex items-center justify-center">
+                {isEditor && (
+                  <span className="absolute inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 opacity-75 animate-ping" />
+                )}
+                <svg
+                  className={`w-4 h-4 transition-colors ${isEditor ? "text-amber-400" : "text-slate-400 group-hover:text-emerald-400"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                  />
+                </svg>
+              </span>
+              <span>{isEditor ? "Modo Editor Ativo" : "Área do Representante"}</span>
             </button>
+
             <button
               onClick={() => onEntrar("dashboard")}
-              className="group text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5),inset_0_1px_0_0_rgba(255,255,255,0.2)] transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_14px_28px_-6px_rgba(16,185,129,0.65)] active:translate-y-0 inline-flex items-center gap-1.5"
+              className="group text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.5),inset_0_1px_0_0_rgba(255,255,255,0.2)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-6px_rgba(16,185,129,0.65)] active:translate-y-0 inline-flex items-center gap-1.5"
             >
               <span>Acessar Plataforma</span>
               <span className="transition-transform duration-300 group-hover:translate-x-0.5">→</span>

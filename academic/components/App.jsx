@@ -28,7 +28,16 @@
       "Notification" in window ? Notification.permission : "unsupported"
     );
 
+    // Estados de Autenticação / Modal de Representante
     const [senhaEditor, setSenhaEditor] = useState("");
+    const [modalLoginAberto, setModalLoginAberto] = useState(false);
+    const [abrirPainelPosLogin, setAbrirPainelPosLogin] = useState(false);
+    const [senhaInput, setSenhaInput] = useState("");
+    const [mostrarSenha, setMostrarSenha] = useState(false);
+    const [erroLogin, setErroLogin] = useState("");
+    const [validandoLogin, setValidandoLogin] = useState(false);
+    const inputSenhaRef = useRef(null);
+
     const [usuarioAtual, setUsuarioAtual] = useState({
       nome: "Estudante",
       cargo: "Aluno",
@@ -138,7 +147,6 @@
 
         if (resForum.ok) setForumPosts(await resForum.json());
 
-        // Verifica novidades e dispara notificações
         const novidades = notifService.detectarNovidades({
           eventos: listaEventosFormatados,
           editais: listaEditais,
@@ -184,6 +192,20 @@
       return () => clearInterval(intervalo);
     }, []);
 
+    // Foco automático e fechamento por ESC no Modal de Login
+    useEffect(() => {
+      if (!modalLoginAberto) return;
+      const timer = setTimeout(() => inputSenhaRef.current?.focus(), 60);
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") fecharModalLogin();
+      };
+      window.addEventListener("keydown", onKeyDown);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener("keydown", onKeyDown);
+      };
+    }, [modalLoginAberto]);
+
     useEffect(() => {
       if (!mostrarLanding && aba === "calendario" && calendarRef.current) {
         if (calendarInstanceRef.current) {
@@ -205,7 +227,6 @@
       }
     }, [mostrarLanding, aba, eventos]);
 
-    // Controles de Notificação
     const naoLidas = historicoNotif.filter((n) => !n.lida).length;
 
     const ativarNotificacoesNavegador = async () => {
@@ -235,7 +256,15 @@
       });
     };
 
-    const autenticarRepresentante = async (abrirPainelAposLogin = false) => {
+    const fecharModalLogin = () => {
+      setModalLoginAberto(false);
+      setSenhaInput("");
+      setMostrarSenha(false);
+      setErroLogin("");
+      setValidandoLogin(false);
+    };
+
+    const abrirAcessoRepresentante = (abrirPainelAposLogin = false) => {
       if (isEditor) {
         setSenhaEditor("");
         setUsuarioAtual({
@@ -243,18 +272,28 @@
           cargo: "Aluno",
           permissoes: ["ler_provas", "ler_materiais", "postar_forum", "ler_editais"],
         });
-        alert("Modo Editor desativado.");
         return;
       }
-      const senhaDigitada = prompt("Digite a senha de Representante:");
-      if (!senhaDigitada) return;
+      setAbrirPainelPosLogin(abrirPainelAposLogin);
+      setSenhaInput("");
+      setErroLogin("");
+      setMostrarSenha(false);
+      setModalLoginAberto(true);
+    };
+
+    const submeterLoginRepresentante = async (e) => {
+      e.preventDefault();
+      if (!senhaInput.trim() || validandoLogin) return;
+
+      setValidandoLogin(true);
+      setErroLogin("");
 
       try {
-        const resposta = await api.login(senhaDigitada);
+        const resposta = await api.login(senhaInput);
         const resultado = await resposta.json();
 
         if (resposta.ok && resultado.success) {
-          setSenhaEditor(senhaDigitada);
+          setSenhaEditor(senhaInput);
           setUsuarioAtual(
             resultado.usuario || {
               nome: "Representante",
@@ -273,16 +312,20 @@
               ],
             }
           );
-          if (abrirPainelAposLogin) {
+          const deveAbrirPainel = abrirPainelPosLogin;
+          fecharModalLogin();
+          if (deveAbrirPainel) {
             setAba("dashboard");
             setMostrarLanding(false);
           }
-          alert("Acesso concedido!");
         } else {
-          alert("Senha incorreta!");
+          setErroLogin("Credencial inválida. Verifique a senha e tente novamente.");
+          inputSenhaRef.current?.select();
         }
       } catch (error) {
-        alert("Erro ao validar senha no servidor.");
+        setErroLogin("Não foi possível conectar ao servidor de autenticação.");
+      } finally {
+        setValidandoLogin(false);
       }
     };
 
@@ -620,8 +663,154 @@
       );
     };
 
-    const overlaysNotificacao = (
+    // --- OVERLAYS GLOBAIS (Modal de Login + Central de Notificações + Toasts) ---
+    const overlaysGlobais = (
       <>
+        {/* Modal Profissional de Acesso do Representante */}
+        {modalLoginAberto && (
+          <div
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={fecharModalLogin}
+          >
+            <div
+              className="relative w-full max-w-md rounded-3xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800/90 p-7 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.08)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Linha de brilho superior */}
+              <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
+
+              {/* Botão fechar */}
+              <button
+                type="button"
+                onClick={fecharModalLogin}
+                aria-label="Fechar janela de acesso"
+                className="absolute top-5 right-5 w-8 h-8 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-white hover:border-slate-700 flex items-center justify-center transition"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Cabeçalho com ícone de escudo */}
+              <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_30px_-5px_rgba(16,185,129,0.35)] flex items-center justify-center text-emerald-400 mb-4">
+                  <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                    />
+                  </svg>
+                </div>
+
+                <span className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
+                  Autenticação Restrita
+                </span>
+                <h3 className="text-xl font-bold text-white tracking-tight">
+                  Área do Representante
+                </h3>
+                <p className="text-xs text-slate-400 mt-1.5 max-w-xs leading-relaxed">
+                  Insira a chave de acesso da turma para gerenciar provas,
+                  editais, materiais PDF e moderação do fórum.
+                </p>
+              </div>
+
+              {/* Formulário */}
+              <form onSubmit={submeterLoginRepresentante} className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="input-senha-representante"
+                    className="block text-xs font-medium text-slate-300 mb-1.5"
+                  >
+                    Chave de Acesso
+                  </label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-500">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    </span>
+
+                    <input
+                      ref={inputSenhaRef}
+                      id="input-senha-representante"
+                      type={mostrarSenha ? "text" : "password"}
+                      value={senhaInput}
+                      onChange={(e) => {
+                        setSenhaInput(e.target.value);
+                        if (erroLogin) setErroLogin("");
+                      }}
+                      placeholder="Digite a senha de representante..."
+                      autoComplete="current-password"
+                      className={`w-full bg-slate-950/90 border rounded-xl py-3 pl-10 pr-11 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition ${
+                        erroLogin
+                          ? "border-red-500/60 focus:ring-red-500/30"
+                          : "border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20"
+                      }`}
+                      required
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setMostrarSenha((v) => !v)}
+                      tabIndex={-1}
+                      title={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
+                      className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-200 transition"
+                    >
+                      {mostrarSenha ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {erroLogin && (
+                  <div className="flex items-center gap-2 text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+                    <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <span>{erroLogin}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={fecharModalLogin}
+                    className="flex-1 py-2.5 px-4 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white text-sm font-medium transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={validandoLogin || !senhaInput.trim()}
+                    className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-bold shadow-[0_8px_20px_-6px_rgba(16,185,129,0.55)] transition inline-flex items-center justify-center gap-2"
+                  >
+                    {validandoLogin ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Validando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Desbloquear</span>
+                        <span>→</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Central de Notificações (Modal) */}
         {painelNotifAberto && (
           <div
@@ -747,14 +936,15 @@
               setAba(abaDestino);
               setMostrarLanding(false);
             }}
-            onEntrarRepresentante={() => autenticarRepresentante(true)}
+            onEntrarRepresentante={() => abrirAcessoRepresentante(true)}
             onAbrirNotificacoes={() => setPainelNotifAberto(true)}
+            isEditor={isEditor}
             naoLidas={naoLidas}
             totalEventos={eventos.length}
             totalEditais={editais.length}
             totalMateriais={materiais.length}
           />
-          {overlaysNotificacao}
+          {overlaysGlobais}
         </>
       );
     }
@@ -825,19 +1015,58 @@
             />
           </div>
 
-          <div className="mt-5 md:mt-0 space-y-2 pt-4 border-t border-slate-800/70">
-            <div className="text-center text-xs text-slate-500">
-              Perfil:{" "}
-              <span className="text-slate-300 font-medium">
-                {usuarioAtual.cargo}
-              </span>
-            </div>
-            <button
-              onClick={() => autenticarRepresentante(false)}
-              className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 ${isEditor ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"}`}
+          <div className="mt-5 md:mt-0 space-y-2.5 pt-4 border-t border-slate-800/70">
+            {/* Card de status do perfil + botão de acesso */}
+            <div
+              className={`rounded-2xl p-3 border transition-all ${
+                isEditor
+                  ? "bg-amber-500/10 border-amber-500/30"
+                  : "bg-slate-950/70 border-slate-800/90"
+              }`}
             >
-              {isEditor ? "🔓 Modo Editor" : "🔒 Acesso Representante"}
-            </button>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isEditor ? "bg-amber-400 animate-pulse" : "bg-emerald-400"
+                    }`}
+                  />
+                  <span className="text-[11px] font-medium text-slate-400">
+                    Sessão atual
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                    isEditor
+                      ? "bg-amber-500/20 text-amber-300"
+                      : "bg-slate-800 text-slate-300"
+                  }`}
+                >
+                  {usuarioAtual.cargo}
+                </span>
+              </div>
+
+              <button
+                onClick={() => abrirAcessoRepresentante(false)}
+                className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 ${
+                  isEditor
+                    ? "bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40"
+                    : "bg-gradient-to-b from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-slate-200 hover:text-white border border-slate-700/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06)]"
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {isEditor ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  )}
+                </svg>
+                <span>
+                  {isEditor ? "Encerrar Modo Editor" : "Acesso Representante"}
+                </span>
+              </button>
+            </div>
+
             <button
               onClick={() => setMostrarLanding(true)}
               className="w-full text-xs text-slate-400 hover:text-white py-2 px-3 rounded-xl hover:bg-slate-800/70 transition"
@@ -1394,7 +1623,7 @@
           )}
         </main>
 
-        {overlaysNotificacao}
+        {overlaysGlobais}
       </div>
     );
   }
