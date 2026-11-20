@@ -1,0 +1,22 @@
+{
+  "name": "ifinityhub-api",
+  "version": "1.0.0",
+  "description": "Back-end API e servidor estático do IFinityHub - 2º Téc. Informática IF Goiano",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
