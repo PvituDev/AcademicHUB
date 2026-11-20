@@ -1,0 +1,22 @@
+.fc {
+  --fc-border-color: #334155;
+  --fc-page-bg-color: #0f172a;
+  --fc-neutral-bg-color: #1e293b;
+  --fc-list-event-hover-bg-color: #334155;
+  color: #f8fafc;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.fc .fc-button-primary {
+  background-color: #059669;
+  border-color: #059669;
+}
+
+.fc .fc-button-primary:hover {
+  background-color: #047857;
+  border-color: #047857;
+}
