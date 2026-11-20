@@ -7,7 +7,7 @@
     <title>AcademicHub - IF Goiano</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
- 
+
     <script
       src="https://unpkg.com/react@18/umd/react.production.min.js"
       crossorigin
@@ -79,7 +79,6 @@
         );
       }
 
-      // Grade padrão caso a rota /api/grade ainda não esteja no ar
       const GRADE_PADRAO = {
         turma: "2º ano Téc. Informática — IF Goiano",
         slots: [
@@ -180,15 +179,14 @@
         const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
         const [aba, setAba] = useState("dashboard");
 
-        // Estado encapsulado do usuário autenticado (Polimorfismo de permissões)
+        // Estado encapsulado do usuário autenticado
         const [senhaEditor, setSenhaEditor] = useState("");
         const [usuarioAtual, setUsuarioAtual] = useState({
           nome: "Estudante",
           cargo: "Aluno",
-          permissoes: ["ler_provas", "ler_materiais", "postar_forum"],
+          permissoes: ["ler_provas", "ler_materiais", "postar_forum", "ler_editais"],
         });
 
-        // Helpers baseados nas permissões retornadas pela classe Representante/Aluno
         const temPermissao = (perm) => usuarioAtual.permissoes.includes(perm);
         const isEditor = temPermissao("criar_provas");
 
@@ -205,6 +203,15 @@
         const [disciplina, setDisciplina] = useState("");
         const [enviando, setEnviando] = useState(false);
 
+        // Editais de Projetos
+        const [editais, setEditais] = useState([]);
+        const [editalTitulo, setEditalTitulo] = useState("");
+        const [editalDescricao, setEditalDescricao] = useState("");
+        const [editalLink, setEditalLink] = useState("");
+        const [editalPrazo, setEditalPrazo] = useState("");
+        const [editalFoto, setEditalFoto] = useState(null);
+        const [editalEnviando, setEditalEnviando] = useState(false);
+
         // Fórum de sugestões
         const [forumPosts, setForumPosts] = useState([]);
         const [forumNome, setForumNome] = useState("");
@@ -215,7 +222,6 @@
         const calendarRef = useRef(null);
         const calendarInstanceRef = useRef(null);
 
-        // Carregar eventos polimórficos do Backend (Prova, Dever, Evento)
         const carregarEventos = async () => {
           try {
             const resposta = await fetch(`${API_URL}/provas`);
@@ -255,7 +261,6 @@
 
             const formatados = validos.map((item) => ({
               id: String(item.id),
-              // Usa o título e a cor definidos polimorficamente pelas subclasses no backend
               title:
                 item.tituloFormatado ||
                 `[${item.tipo ? item.tipo.toUpperCase() : "EVENTO"}] ${item.title}`,
@@ -279,7 +284,6 @@
           }
         };
 
-        // Carregar materiais em PDF do Backend
         const carregarMateriais = async () => {
           try {
             const resposta = await fetch(`${API_URL}/materiais`);
@@ -291,7 +295,17 @@
           }
         };
 
-        // Carregar posts do Fórum
+        const carregarEditais = async () => {
+          try {
+            const resposta = await fetch(`${API_URL}/editais`);
+            if (!resposta.ok) throw new Error("Erro na rede");
+            const data = await resposta.json();
+            setEditais(data);
+          } catch (err) {
+            console.error("Erro ao carregar editais:", err);
+          }
+        };
+
         const carregarForum = async () => {
           try {
             const resposta = await fetch(`${API_URL}/forum`);
@@ -303,7 +317,6 @@
           }
         };
 
-        // Carregar Grade Horária estruturada do Backend
         const carregarGrade = async () => {
           try {
             const resposta = await fetch(`${API_URL}/grade`);
@@ -311,14 +324,13 @@
               const data = await resposta.json();
               if (data && data.slots) setGradeHoraria(data);
             }
-          } catch (err) {
-            // Mantém GRADE_PADRAO em caso de falha
-          }
+          } catch (err) {}
         };
 
         useEffect(() => {
           carregarEventos();
           carregarMateriais();
+          carregarEditais();
           carregarForum();
           carregarGrade();
 
@@ -326,7 +338,6 @@
           return () => clearInterval(intervalo);
         }, []);
 
-        // Renderizar Calendário
         useEffect(() => {
           if (aba === "calendario" && calendarRef.current) {
             if (calendarInstanceRef.current) {
@@ -354,7 +365,7 @@
             setUsuarioAtual({
               nome: "Estudante",
               cargo: "Aluno",
-              permissoes: ["ler_provas", "ler_materiais", "postar_forum"],
+              permissoes: ["ler_provas", "ler_materiais", "postar_forum", "ler_editais"],
             });
             alert("Modo Editor desativado.");
             return;
@@ -383,11 +394,13 @@
                     "ler_provas",
                     "ler_materiais",
                     "postar_forum",
+                    "ler_editais",
                     "criar_provas",
                     "editar_provas",
                     "deletar_provas",
                     "publicar_materiais",
                     "moderar_forum",
+                    "publicar_editais",
                   ],
                 });
               }
@@ -538,6 +551,66 @@
           }
         };
 
+        const publicarEdital = async (e) => {
+          e.preventDefault();
+          if (!editalTitulo || !editalDescricao || !editalLink) return;
+
+          try {
+            setEditalEnviando(true);
+            const formData = new FormData();
+            formData.append("titulo", editalTitulo);
+            formData.append("descricao", editalDescricao);
+            formData.append("link_formulario", editalLink);
+            formData.append("prazo", editalPrazo);
+            if (editalFoto) {
+              formData.append("foto", editalFoto);
+            }
+
+            const resposta = await fetch(`${API_URL}/editais`, {
+              method: "POST",
+              headers: {
+                "x-admin-password": senhaEditor,
+              },
+              body: formData,
+            });
+
+            if (resposta.ok) {
+              alert("Edital publicado com sucesso!");
+              setEditalTitulo("");
+              setEditalDescricao("");
+              setEditalLink("");
+              setEditalPrazo("");
+              setEditalFoto(null);
+              carregarEditais();
+            } else {
+              const erro = await resposta.json();
+              alert("Erro ao publicar edital: " + (erro.error || "Erro"));
+            }
+          } catch (error) {
+            alert("Erro: " + error.message);
+          } finally {
+            setEditalEnviando(false);
+          }
+        };
+
+        const deletarEdital = async (id) => {
+          if (!confirm("Tem certeza que deseja apagar este edital?")) return;
+          try {
+            const resposta = await fetch(`${API_URL}/editais/${id}`, {
+              method: "DELETE",
+              headers: { "x-admin-password": senhaEditor },
+            });
+            if (resposta.ok) {
+              carregarEditais();
+            } else {
+              const erro = await resposta.json();
+              alert("Erro ao deletar edital: " + (erro.error || "Erro"));
+            }
+          } catch (error) {
+            console.error("Erro ao deletar edital:", error);
+          }
+        };
+
         const publicarForum = async (e) => {
           e.preventDefault();
           setForumErro("");
@@ -646,6 +719,12 @@
                     className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "grade" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
                   >
                     📊 Grade Horária
+                  </button>
+                  <button
+                    onClick={() => setAba("editais")}
+                    className={`w-full text-left px-4 py-3 rounded-xl font-medium flex items-center gap-3 transition ${aba === "editais" ? "bg-emerald-600/10 text-emerald-400 border border-emerald-500/20" : "text-slate-400 hover:bg-slate-800"}`}
+                  >
+                    🚀 Editais de Projetos
                   </button>
                   <button
                     onClick={() => setAba("materiais")}
@@ -802,6 +881,139 @@
                     {eventos.length === 0 && (
                       <p className="text-slate-500">
                         Nenhuma atividade agendada.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {aba === "editais" && (
+                <div className="max-w-5xl mx-auto space-y-8">
+                  <header>
+                    <h2 className="text-2xl font-bold text-white mb-1">
+                      Editais Abertos de Projetos — IF Goiano
+                    </h2>
+                    <p className="text-slate-400 text-sm">
+                      Oportunidades de iniciação científica, extensão, monitoria e
+                      projetos estudantis com inscrição aberta.
+                    </p>
+                  </header>
+
+                  {temPermissao("publicar_editais") && (
+                    <form
+                      onSubmit={publicarEdital}
+                      className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
+                    >
+                      <h3 className="font-semibold text-emerald-400">
+                        Publicar Novo Edital
+                      </h3>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input
+                          type="text"
+                          placeholder="Título do Projeto / Edital (Ex: PIBIC-EM 2026)"
+                          value={editalTitulo}
+                          onChange={(e) => setEditalTitulo(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                          required
+                        />
+                        <input
+                          type="url"
+                          placeholder="Link do Formulário (https://forms.gle/...)"
+                          value={editalLink}
+                          onChange={(e) => setEditalLink(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                          required
+                        />
+                        <input
+                          type="date"
+                          value={editalPrazo}
+                          onChange={(e) => setEditalPrazo(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                          title="Prazo final de inscrição (Opcional)"
+                        />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setEditalFoto(e.target.files[0])}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-white"
+                          title="Foto ou banner do edital (Opcional)"
+                        />
+                        <textarea
+                          placeholder="Informações adicionais do edital (requisitos, bolsa, orientador, resumo...)"
+                          value={editalDescricao}
+                          onChange={(e) => setEditalDescricao(e.target.value)}
+                          rows={4}
+                          className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white resize-none col-span-1 md:col-span-2"
+                          required
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={editalEnviando}
+                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
+                      >
+                        {editalEnviando ? "Publicando..." : "Publicar Edital"}
+                      </button>
+                    </form>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {editais.map((edital) => (
+                      <article
+                        key={edital.id}
+                        className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg"
+                      >
+                        <div>
+                          {edital.imagem_url && (
+                            <img
+                              src={edital.imagem_url}
+                              alt={edital.titulo}
+                              className="w-full h-48 object-cover border-b border-slate-800"
+                            />
+                          )}
+                          <div className="p-5 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="text-lg font-bold text-white leading-snug">
+                                {edital.titulo}
+                              </h3>
+                              {edital.prazo && (
+                                <span className="shrink-0 text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                                  Até {edital.prazo}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-300 text-sm whitespace-pre-line">
+                              {edital.descricao}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-5 pt-0 flex items-center justify-between gap-3">
+                          <a
+                            href={edital.link_formulario}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl transition text-sm"
+                          >
+                            Acessar Formulário ↗
+                          </a>
+                          {temPermissao("publicar_editais") && (
+                            <button
+                              onClick={() => deletarEdital(edital.id)}
+                              className="bg-red-500/10 text-red-400 px-3 py-2.5 rounded-xl hover:bg-red-500/20 transition text-sm"
+                            >
+                              Apagar
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+
+                    {editais.length === 0 && (
+                      <p className="text-slate-500 col-span-full">
+                        Nenhum edital aberto publicado no momento.
                       </p>
                     )}
                   </div>
