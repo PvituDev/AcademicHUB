@@ -14,8 +14,8 @@ class SlotHorario {
 }
 
 class GradeHoraria {
-  #turma; // Encapsulamento
-  #slots; // Encapsulamento
+  #turma;
+  #slots;
 
   constructor(turma) {
     this.#turma = turma;

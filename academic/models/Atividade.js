@@ -1,5 +1,5 @@
 class Atividade {
-  #id; // Encapsulamento
+  #id;
 
   constructor({ id = null, title, start, descricao = "" }) {
     if (!title || !start) {
@@ -15,7 +15,6 @@ class Atividade {
     return this.#id;
   }
 
-  // Métodos polimórficos (sobrescritos nas classes filhas)
   get tipo() {
     return "geral";
   }
@@ -69,7 +68,6 @@ class Atividade {
   }
 }
 
-// Herança + Polimorfismo
 class Prova extends Atividade {
   get tipo() {
     return "prova";
