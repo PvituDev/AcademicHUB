@@ -10,6 +10,7 @@
       api,
       utils: { contemOfensa, formatarContagemRegressiva },
       notificacoes: notifService,
+      acessibilidade: a11yService,
     } = window.IFinityHub;
 
     const [mostrarLanding, setMostrarLanding] = useState(true);
@@ -17,6 +18,24 @@
     const [materiais, setMateriais] = useState([]);
     const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
     const [aba, setAba] = useState("dashboard");
+
+    // Preferências de Acessibilidade (Normal Vision, Protanopia, Deuteranopia, Tritanopia)
+    const [preferencias, setPreferencias] = useState(() =>
+      a11yService.carregarPreferencias()
+    );
+
+    useEffect(() => {
+      a11yService.aplicarNoDocumento(preferencias);
+      a11yService.salvarPreferencias(preferencias);
+    }, [preferencias]);
+
+    const atualizarPreferencia = (chave, valor) => {
+      setPreferencias((prev) => ({ ...prev, [chave]: valor }));
+    };
+
+    const perfilVisaoAtual =
+      a11yService.PERFIS_VISAO[preferencias.modoVisao] ||
+      a11yService.PERFIS_VISAO.normal;
 
     // Estados de Notificações
     const [historicoNotif, setHistoricoNotif] = useState(() =>
@@ -206,6 +225,15 @@
       };
     }, [modalLoginAberto]);
 
+    const eventosAdaptados = useMemo(
+      () =>
+        eventos.map((evt) => ({
+          ...evt,
+          color: a11yService.obterCorEvento(evt.tipo, preferencias.modoVisao),
+        })),
+      [eventos, preferencias.modoVisao]
+    );
+
     useEffect(() => {
       if (!mostrarLanding && aba === "calendario" && calendarRef.current) {
         if (calendarInstanceRef.current) {
@@ -219,13 +247,13 @@
             center: "title",
             right: "dayGridMonth,timeGridWeek",
           },
-          events: eventos,
+          events: eventosAdaptados,
           height: "75vh",
         });
         calendar.render();
         calendarInstanceRef.current = calendar;
       }
-    }, [mostrarLanding, aba, eventos]);
+    }, [mostrarLanding, aba, eventosAdaptados]);
 
     const naoLidas = historicoNotif.filter((n) => !n.lida).length;
 
@@ -600,8 +628,26 @@
             </svg>
           ),
         },
+        {
+          id: "preferencias",
+          title: "Preferências",
+          description: "Visão e daltonismo",
+          meta: preferencias.modoVisao !== "normal" ? "Ativo" : undefined,
+          icon: (
+            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          ),
+        },
       ],
-      [eventos.length, editais.length, materiais.length, forumPosts.length]
+      [
+        eventos.length,
+        editais.length,
+        materiais.length,
+        forumPosts.length,
+        preferencias.modoVisao,
+      ]
     );
 
     const indiceAbaAtiva = useMemo(
@@ -611,7 +657,7 @@
 
     const itensMural = useMemo(
       () =>
-        eventos.map((evt) => {
+        eventosAdaptados.map((evt) => {
           const isProva = evt.tipo === "prova";
           const isDever = evt.tipo === "dever";
 
@@ -621,12 +667,8 @@
             description: evt.descricao,
             meta: formatarContagemRegressiva(evt.start),
             iconStyle: {
-              backgroundColor: isProva
-                ? "rgba(239, 68, 68, 0.14)"
-                : isDever
-                  ? "rgba(245, 158, 11, 0.14)"
-                  : "rgba(139, 92, 246, 0.14)",
-              color: isProva ? "#f87171" : isDever ? "#fbbf24" : "#a78bfa",
+              backgroundColor: `${evt.color}24`,
+              color: evt.color,
             },
             icon: isProva ? (
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -643,7 +685,7 @@
             ),
           };
         }),
-      [eventos]
+      [eventosAdaptados]
     );
 
     const slotsMatutino = gradeHoraria.slots.filter(
@@ -676,10 +718,8 @@
               className="relative w-full max-w-md rounded-3xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800/90 p-7 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),inset_0_1px_0_0_rgba(255,255,255,0.08)]"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Linha de brilho superior */}
               <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/60 to-transparent" />
 
-              {/* Botão fechar */}
               <button
                 type="button"
                 onClick={fecharModalLogin}
@@ -691,7 +731,6 @@
                 </svg>
               </button>
 
-              {/* Cabeçalho com ícone de escudo */}
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-[0_0_30px_-5px_rgba(16,185,129,0.35)] flex items-center justify-center text-emerald-400 mb-4">
                   <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -715,7 +754,6 @@
                 </p>
               </div>
 
-              {/* Formulário */}
               <form onSubmit={submeterLoginRepresentante} className="space-y-4">
                 <div>
                   <label
@@ -874,7 +912,7 @@
                   onItemSelect={(item) => abrirNotificacao(item)}
                   animation="pop"
                   theme="dark"
-                  accentColor="#10b981"
+                  accentColor={perfilVisaoAtual.destaqueHex}
                   width="100%"
                   maxHeight={340}
                   radius={12}
@@ -938,6 +976,12 @@
             }}
             onEntrarRepresentante={() => abrirAcessoRepresentante(true)}
             onAbrirNotificacoes={() => setPainelNotifAberto(true)}
+            onAbrirPreferencias={() => {
+              setAba("preferencias");
+              setMostrarLanding(false);
+            }}
+            modoVisao={preferencias.modoVisao}
+            destaqueHex={perfilVisaoAtual.destaqueHex}
             isEditor={isEditor}
             naoLidas={naoLidas}
             totalEventos={eventos.length}
@@ -951,7 +995,7 @@
 
     return (
       <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
-        <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0">
+        <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0 overflow-y-auto">
           <div>
             <div className="flex flex-col items-center text-center mb-4">
               <button
@@ -998,9 +1042,9 @@
               onItemSelect={(item) => setAba(item.id)}
               animation="pop"
               theme="dark"
-              accentColor="#10b981"
+              accentColor={perfilVisaoAtual.destaqueHex}
               width="100%"
-              maxHeight={460}
+              maxHeight={500}
               radius={12}
               gap={7}
               stagger={0.04}
@@ -1015,7 +1059,7 @@
             />
           </div>
 
-          <div className="mt-5 md:mt-0 space-y-2.5 pt-4 border-t border-slate-800/70">
+          <div className="mt-5 space-y-2.5 pt-4 border-t border-slate-800/70">
             {/* Card de status do perfil + botão de acesso */}
             <div
               className={`rounded-2xl p-3 border transition-all ${
@@ -1161,7 +1205,7 @@
                   items={itensMural}
                   animation="pop"
                   theme="dark"
-                  accentColor="#10b981"
+                  accentColor={perfilVisaoAtual.destaqueHex}
                   width="100%"
                   maxHeight={560}
                   radius={14}
@@ -1619,6 +1663,217 @@
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {aba === "preferencias" && (
+            <div className="max-w-5xl mx-auto space-y-8">
+              <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800/70 pb-5">
+                <div>
+                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                    Acessibilidade Visual
+                  </span>
+                  <h2 className="text-2xl font-bold text-white mt-0.5">
+                    Configurações & Preferências de Visão
+                  </h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Adapte a paleta de cores do IFinityHub para facilitar a
+                    leitura de provas, calendários, alertas e editais.
+                  </p>
+                </div>
+
+                {preferencias.modoVisao !== "normal" && (
+                  <button
+                    onClick={() =>
+                      setPreferencias({ ...a11yService.PREFS_PADRAO })
+                    }
+                    className="self-start sm:self-auto text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 transition"
+                  >
+                    Restaurar Padrão
+                  </button>
+                )}
+              </header>
+
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                  Perfil de Percepção de Cores
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {Object.values(a11yService.PERFIS_VISAO).map((perfil) => {
+                    const selecionado = preferencias.modoVisao === perfil.id;
+                    return (
+                      <button
+                        key={perfil.id}
+                        type="button"
+                        onClick={() =>
+                          atualizarPreferencia("modoVisao", perfil.id)
+                        }
+                        className={`text-left rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between gap-4 ${
+                          selecionado
+                            ? "bg-slate-900 border-emerald-500/60 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.25)]"
+                            : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-white text-base">
+                              {perfil.nome}
+                            </span>
+                            <span
+                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                                selecionado
+                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                  : "bg-slate-950 text-slate-500 border border-slate-800"
+                              }`}
+                            >
+                              {selecionado ? "Ativo" : "Selecionar"}
+                            </span>
+                          </div>
+                          <p className="text-xs font-medium text-emerald-400">
+                            {perfil.subtitulo}
+                          </p>
+                          <p className="text-xs text-slate-400 leading-relaxed">
+                            {perfil.descricao}
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                          <span className="text-[11px] text-slate-400">
+                            Paleta de categorias:
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span
+                              title="Prova"
+                              style={{ backgroundColor: perfil.coresEventos.prova }}
+                              className="w-5 h-5 rounded-full border border-white/20"
+                            />
+                            <span
+                              title="Dever"
+                              style={{ backgroundColor: perfil.coresEventos.dever }}
+                              className="w-5 h-5 rounded-full border border-white/20"
+                            />
+                            <span
+                              title="Evento"
+                              style={{ backgroundColor: perfil.coresEventos.evento }}
+                              className="w-5 h-5 rounded-full border border-white/20"
+                            />
+                            <span
+                              title="Destaque"
+                              style={{ backgroundColor: perfil.destaqueHex }}
+                              className="w-5 h-5 rounded-full border border-white/20"
+                            />
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                  Reforços Visuais Complementares
+                </h3>
+
+                <div className="divide-y divide-slate-800/80">
+                  <label className="py-3.5 first:pt-0 flex items-center justify-between gap-4 cursor-pointer">
+                    <div>
+                      <div className="font-semibold text-white text-sm">
+                        Reforço de Contraste em Bordas e Textos
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Aumenta a nitidez de cartões, tabelas da grade horária e
+                        textos secundários.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={preferencias.altoContrasteBordas}
+                      onChange={(e) =>
+                        atualizarPreferencia(
+                          "altoContrasteBordas",
+                          e.target.checked
+                        )
+                      }
+                      className="w-5 h-5 accent-emerald-500 rounded cursor-pointer"
+                    />
+                  </label>
+
+                  <label className="py-3.5 last:pb-0 flex items-center justify-between gap-4 cursor-pointer">
+                    <div>
+                      <div className="font-semibold text-white text-sm">
+                        Aplicar Matriz de Compensação em Imagens e Banners
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Ajusta tonalidades de imagens de editais usando filtro
+                        SVG conforme o perfil selecionado.
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={preferencias.aplicarFiltroImagens}
+                      onChange={(e) =>
+                        atualizarPreferencia(
+                          "aplicarFiltroImagens",
+                          e.target.checked
+                        )
+                      }
+                      className="w-5 h-5 accent-emerald-500 rounded cursor-pointer"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    Pré-visualização de Etiquetas & Alertas
+                  </h3>
+                  <span className="text-xs text-slate-400">
+                    Modo atual:{" "}
+                    <strong className="text-white">
+                      {perfilVisaoAtual.nome}
+                    </strong>
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <span
+                    style={{
+                      backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
+                      color: perfilVisaoAtual.coresEventos.prova,
+                      borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                  >
+                    ● PROVA — Matemática
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
+                      color: perfilVisaoAtual.coresEventos.dever,
+                      borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                  >
+                    ▲ DEVER — Lista de POO
+                  </span>
+                  <span
+                    style={{
+                      backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
+                      color: perfilVisaoAtual.coresEventos.evento,
+                      borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                  >
+                    ■ EVENTO — Mostra Científica
+                  </span>
+                  <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
+                    ✓ Destaque Principal
+                  </span>
+                </div>
+              </section>
             </div>
           )}
         </main>

@@ -12,11 +12,146 @@
 }
 
 .fc .fc-button-primary {
-  background-color: #059669;
-  border-color: #059669;
+  background-color: var(--a11y-accent, #059669);
+  border-color: var(--a11y-accent, #059669);
 }
 
 .fc .fc-button-primary:hover {
-  background-color: #047857;
-  border-color: #047857;
+  filter: brightness(0.9);
+}
+
+/* =========================================================
+   ACESSIBILIDADE VISUAL & SUPORTE A DALTONISMO
+   ========================================================= */
+
+:root {
+  --a11y-accent: #10b981;
+}
+
+/* Filtro SVG opcional para banners e imagens */
+html[data-image-filter="true"] img {
+  filter: url(#ifinityhub-daltonismo-filter);
+}
+
+/* Reforço opcional de contraste em bordas e textos */
+html[data-high-contrast="true"] .border-slate-800,
+html[data-high-contrast="true"] .border-slate-800\/70,
+html[data-high-contrast="true"] .border-slate-800\/80,
+html[data-high-contrast="true"] .border-slate-800\/90 {
+  border-color: rgba(148, 163, 184, 0.45) !important;
+}
+
+html[data-high-contrast="true"] .text-slate-400,
+html[data-high-contrast="true"] .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+/* --- PROTANOPIA (Deficiência no Vermelho -> Azul Ciano / Laranja / Ouro) --- */
+html[data-vision-mode="protanopia"] .text-emerald-400,
+html[data-vision-mode="protanopia"] .text-emerald-300 {
+  color: #38bdf8 !important;
+}
+html[data-vision-mode="protanopia"] .bg-emerald-600,
+html[data-vision-mode="protanopia"] .bg-emerald-500 {
+  background-color: #0284c7 !important;
+}
+html[data-vision-mode="protanopia"] .hover\:bg-emerald-500:hover {
+  background-color: #0ea5e9 !important;
+}
+html[data-vision-mode="protanopia"] .from-emerald-500 {
+  --tw-gradient-from: #0ea5e9 !important;
+}
+html[data-vision-mode="protanopia"] .to-emerald-600 {
+  --tw-gradient-to: #0369a1 !important;
+}
+html[data-vision-mode="protanopia"] .bg-emerald-500\/10,
+html[data-vision-mode="protanopia"] .bg-emerald-500\/15 {
+  background-color: rgba(14, 165, 233, 0.14) !important;
+}
+html[data-vision-mode="protanopia"] .border-emerald-500\/20,
+html[data-vision-mode="protanopia"] .border-emerald-500\/30,
+html[data-vision-mode="protanopia"] .border-emerald-500\/40,
+html[data-vision-mode="protanopia"] .border-emerald-500\/60 {
+  border-color: rgba(56, 189, 248, 0.55) !important;
+}
+html[data-vision-mode="protanopia"] .text-red-400 {
+  color: #fb923c !important;
+}
+html[data-vision-mode="protanopia"] .bg-red-500\/10 {
+  background-color: rgba(249, 115, 22, 0.16) !important;
+}
+
+/* --- DEUTERANOPIA (Deficiência no Verde -> Azul Safira / Laranja / Amarelo) --- */
+html[data-vision-mode="deuteranopia"] .text-emerald-400,
+html[data-vision-mode="deuteranopia"] .text-emerald-300 {
+  color: #60a5fa !important;
+}
+html[data-vision-mode="deuteranopia"] .bg-emerald-600,
+html[data-vision-mode="deuteranopia"] .bg-emerald-500 {
+  background-color: #2563eb !important;
+}
+html[data-vision-mode="deuteranopia"] .hover\:bg-emerald-500:hover {
+  background-color: #3b82f6 !important;
+}
+html[data-vision-mode="deuteranopia"] .from-emerald-500 {
+  --tw-gradient-from: #3b82f6 !important;
+}
+html[data-vision-mode="deuteranopia"] .to-emerald-600 {
+  --tw-gradient-to: #1d4ed8 !important;
+}
+html[data-vision-mode="deuteranopia"] .bg-emerald-500\/10,
+html[data-vision-mode="deuteranopia"] .bg-emerald-500\/15 {
+  background-color: rgba(59, 130, 246, 0.15) !important;
+}
+html[data-vision-mode="deuteranopia"] .border-emerald-500\/20,
+html[data-vision-mode="deuteranopia"] .border-emerald-500\/30,
+html[data-vision-mode="deuteranopia"] .border-emerald-500\/40,
+html[data-vision-mode="deuteranopia"] .border-emerald-500\/60 {
+  border-color: rgba(96, 165, 250, 0.55) !important;
+}
+html[data-vision-mode="deuteranopia"] .text-red-400 {
+  color: #fb923c !important;
+}
+html[data-vision-mode="deuteranopia"] .bg-red-500\/10 {
+  background-color: rgba(249, 115, 22, 0.16) !important;
+}
+
+/* --- TRITANOPIA (Deficiência no Azul/Amarelo -> Turquesa / Carmesim / Rosa) --- */
+html[data-vision-mode="tritanopia"] .text-emerald-400,
+html[data-vision-mode="tritanopia"] .text-emerald-300 {
+  color: #2dd4bf !important;
+}
+html[data-vision-mode="tritanopia"] .bg-emerald-600,
+html[data-vision-mode="tritanopia"] .bg-emerald-500 {
+  background-color: #0d9488 !important;
+}
+html[data-vision-mode="tritanopia"] .hover\:bg-emerald-500:hover {
+  background-color: #14b8a6 !important;
+}
+html[data-vision-mode="tritanopia"] .from-emerald-500 {
+  --tw-gradient-from: #14b8a6 !important;
+}
+html[data-vision-mode="tritanopia"] .to-emerald-600 {
+  --tw-gradient-to: #0f766e !important;
+}
+html[data-vision-mode="tritanopia"] .bg-emerald-500\/10,
+html[data-vision-mode="tritanopia"] .bg-emerald-500\/15 {
+  background-color: rgba(20, 184, 166, 0.15) !important;
+}
+html[data-vision-mode="tritanopia"] .border-emerald-500\/20,
+html[data-vision-mode="tritanopia"] .border-emerald-500\/30,
+html[data-vision-mode="tritanopia"] .border-emerald-500\/40,
+html[data-vision-mode="tritanopia"] .border-emerald-500\/60 {
+  border-color: rgba(45, 212, 191, 0.55) !important;
+}
+html[data-vision-mode="tritanopia"] .text-amber-400,
+html[data-vision-mode="tritanopia"] .text-amber-300 {
+  color: #fb7185 !important;
+}
+html[data-vision-mode="tritanopia"] .bg-amber-500\/10,
+html[data-vision-mode="tritanopia"] .bg-amber-500\/15 {
+  background-color: rgba(244, 63, 94, 0.15) !important;
+}
+html[data-vision-mode="tritanopia"] .text-blue-400 {
+  color: #5eead4 !important;
 }
