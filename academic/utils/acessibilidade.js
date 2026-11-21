@@ -70,12 +70,17 @@
 
   const PREFS_PADRAO = {
     modoVisao: "normal",
-    escalaFonte: 100, // 90, 100, 110, 120 (%)
+    escalaFonte: 100, // 85 a 125 (%)
     espacamentoLeitura: false,
     reduzirAnimacoes: false,
     altoContrasteBordas: false,
     aplicarFiltroImagens: false,
     destacarLinksBotoes: false,
+    // Recursos para Deficiência Visual (TalkBack / TTS) e Auditiva (Alertas Visuais + Legendas)
+    talkbackAtivo: false,
+    velocidadeVoz: 1.0, // 0.8, 1.0, 1.25, 1.5
+    alertasVisuaisAudicao: false,
+    legendasVozAtivas: false,
   };
 
   function carregarPreferencias() {
@@ -141,6 +146,10 @@
       "data-highlight-interactive",
       prefs.destacarLinksBotoes ? "true" : "false"
     );
+    root.setAttribute(
+      "data-visual-alerts",
+      prefs.alertasVisuaisAudicao ? "true" : "false"
+    );
 
     const escala = Number(prefs.escalaFonte) || 100;
     root.style.fontSize = `${escala}%`;
@@ -157,6 +166,42 @@
     return perfil.coresEventos[tipo] || perfil.coresEventos.outro;
   }
 
+  // Motor de Síntese de Voz (Modo TalkBack)
+  function falarTexto(texto, velocidade = 1.0, onLegenda = null) {
+    const limpo = (texto || "").replace(/\s+/g, " ").trim();
+    if (!limpo) return;
+
+    if (typeof onLegenda === "function") {
+      onLegenda(limpo);
+    }
+
+    if (!("speechSynthesis" in window)) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(limpo);
+      utterance.lang = "pt-BR";
+      utterance.rate = Number(velocidade) || 1.0;
+      utterance.pitch = 1.0;
+
+      const vozes = window.speechSynthesis.getVoices();
+      const vozPT = vozes.find((v) => v.lang && v.lang.toLowerCase().includes("pt"));
+      if (vozPT) utterance.voice = vozPT;
+
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn("Erro na síntese de voz:", err);
+    }
+  }
+
+  function pararFala() {
+    if ("speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+  }
+
   window.IFinityHub.acessibilidade = {
     PERFIS_VISAO,
     PREFS_PADRAO,
@@ -164,5 +209,7 @@
     salvarPreferencias,
     aplicarNoDocumento,
     obterCorEvento,
+    falarTexto,
+    pararFala,
   };
 })();

@@ -19,10 +19,12 @@
     const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
     const [aba, setAba] = useState("dashboard");
 
-    // Preferências de Acessibilidade e Configurações
+    // Preferências de Acessibilidade (Daltonismo, TalkBack, Auditivo, Tipografia)
     const [preferencias, setPreferencias] = useState(() =>
       a11yService.carregarPreferencias()
     );
+    const [legendaAtual, setLegendaAtual] = useState("");
+    const [flashVisualAtivo, setFlashVisualAtivo] = useState(false);
 
     useEffect(() => {
       a11yService.aplicarNoDocumento(preferencias);
@@ -41,6 +43,117 @@
       });
     };
 
+    const dispararFlashVisual = () => {
+      setFlashVisualAtivo(false);
+      requestAnimationFrame(() => {
+        setFlashVisualAtivo(true);
+        setTimeout(() => setFlashVisualAtivo(false), 3000);
+      });
+    };
+
+    const falarComSuporte = (texto) => {
+      a11yService.falarTexto(
+        texto,
+        preferencias.velocidadeVoz,
+        preferencias.legendasVozAtivas ? (txt) => setLegendaAtual(txt) : null
+      );
+    };
+
+    // Modo TalkBack: lê automaticamente qualquer botão, link, cartão ou campo focado/clicado
+    useEffect(() => {
+      if (!preferencias.talkbackAtivo) {
+        a11yService.pararFala();
+        return;
+      }
+
+      const extrairDescricaoElemento = (el) => {
+        if (!el) return "";
+        const alvo = el.closest(
+          "button, a, input, select, textarea, article, tr, [role='button'], [tabindex]"
+        ) || el;
+
+        const ariaLabel = alvo.getAttribute?.("aria-label");
+        if (ariaLabel) return ariaLabel;
+
+        if (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA") {
+          return `${alvo.placeholder || alvo.name || "Campo de texto"}${alvo.value ? `, valor ${alvo.value}` : ""}`;
+        }
+        if (alvo.tagName === "SELECT") {
+          const opcao = alvo.options?.[alvo.selectedIndex]?.text || "";
+          return `Seletor, opção atual ${opcao}`;
+        }
+
+        return (alvo.innerText || alvo.textContent || "").trim().slice(0, 220);
+      };
+
+      const aoClicar = (e) => {
+        const txt = extrairDescricaoElemento(e.target);
+        if (txt) falarComSuporte(txt);
+      };
+
+      const aoFocar = (e) => {
+        const txt = extrairDescricaoElemento(e.target);
+        if (txt) falarComSuporte(txt);
+      };
+
+      document.addEventListener("click", aoClicar, true);
+      document.addEventListener("focusin", aoFocar, true);
+      return () => {
+        document.removeEventListener("click", aoClicar, true);
+        document.removeEventListener("focusin", aoFocar, true);
+      };
+    }, [preferencias.talkbackAtivo, preferencias.velocidadeVoz, preferencias.legendasVozAtivas]);
+
+    const lerResumoAbaAtual = () => {
+      if (aba === "dashboard") {
+        const resumo =
+          eventos.length === 0
+            ? "Mural de atividades vazio. Nenhuma prova ou dever agendado."
+            : `Mural de atividades com ${eventos.length} itens. ` +
+              eventos
+                .slice(0, 5)
+                .map((e) => `${e.tipo}: ${e.nomeOriginal}, data ${e.start}.`)
+                .join(" ");
+        falarComSuporte(resumo);
+      } else if (aba === "editais") {
+        const resumo =
+          editais.length === 0
+            ? "Nenhum edital de projeto publicado no momento."
+            : `Editais abertos: ${editais.length} oportunidades. ` +
+              editais
+                .slice(0, 4)
+                .map((ed) => `${ed.titulo}${ed.prazo ? `, prazo até ${ed.prazo}` : ""}.`)
+                .join(" ");
+        falarComSuporte(resumo);
+      } else if (aba === "materiais") {
+        const resumo =
+          materiais.length === 0
+            ? "Nenhum material PDF disponível."
+            : `Acervo com ${materiais.length} materiais PDF. ` +
+              materiais
+                .slice(0, 5)
+                .map((m) => `${m.disciplina}: ${m.nome}.`)
+                .join(" ");
+        falarComSuporte(resumo);
+      } else if (aba === "grade") {
+        falarComSuporte(
+          `Grade horária semanal da turma ${gradeHoraria.turma}. Use as setas ou clique sobre qualquer disciplina para ouvir o professor e o horário.`
+        );
+      } else if (aba === "forum") {
+        falarComSuporte(
+          `Fórum de sugestões com ${forumPosts.length} publicações da turma.`
+        );
+      } else if (aba === "calendario") {
+        falarComSuporte(
+          `Calendário acadêmico com ${eventos.length} eventos marcados.`
+        );
+      } else {
+        falarComSuporte(
+          "Página de Preferências e Acessibilidade. Aqui você pode ativar o TalkBack, perfis de daltonismo e alertas visuais para deficiência auditiva."
+        );
+      }
+    };
+
     const perfilVisaoAtual =
       a11yService.PERFIS_VISAO[preferencias.modoVisao] ||
       a11yService.PERFIS_VISAO.normal;
@@ -52,7 +165,10 @@
       preferencias.reduzirAnimacoes ||
       preferencias.altoContrasteBordas ||
       preferencias.aplicarFiltroImagens ||
-      preferencias.destacarLinksBotoes;
+      preferencias.destacarLinksBotoes ||
+      preferencias.talkbackAtivo ||
+      preferencias.alertasVisuaisAudicao ||
+      preferencias.legendasVozAtivas;
 
     // Estados de Notificações
     const [historicoNotif, setHistoricoNotif] = useState(() =>
@@ -197,6 +313,14 @@
           });
 
           setToasts((prev) => [...novidades, ...prev].slice(0, 4));
+
+          if (preferencias.alertasVisuaisAudicao) {
+            dispararFlashVisual();
+          }
+
+          if (preferencias.talkbackAtivo) {
+            falarComSuporte(`Nova publicação: ${novidades[0].titulo}. ${novidades[0].descricao}`);
+          }
 
           novidades.forEach((n) => {
             notifService.dispararNativa(n.titulo, n.descricao, () => {
@@ -650,12 +774,7 @@
           ),
         },
       ],
-      [
-        eventos.length,
-        editais.length,
-        materiais.length,
-        forumPosts.length,
-      ]
+      [eventos.length, editais.length, materiais.length, forumPosts.length]
     );
 
     const indiceAbaAtiva = useMemo(
@@ -715,6 +834,39 @@
 
     const overlaysGlobais = (
       <>
+        {/* Flash Visual na borda da tela para Deficiência Auditiva */}
+        {flashVisualAtivo && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-50 a11y-visual-flash"
+          />
+        )}
+
+        {/* Barra de Legenda / Transcrição ao vivo quando TalkBack + Legendas estiverem ativos */}
+        {preferencias.legendasVozAtivas && legendaAtual && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-2xl w-[92%] bg-slate-950/95 border border-emerald-500/50 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 backdrop-blur-md"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                Legenda
+              </span>
+              <p className="text-xs sm:text-sm text-slate-100 truncate">
+                {legendaAtual}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setLegendaAtual("")}
+              className="text-slate-400 hover:text-white text-xs px-1.5"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {modalLoginAberto && (
           <div
             className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
@@ -1103,22 +1255,33 @@
 
         {/* Área Direita com Barra Superior Fixa + Conteúdo */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* BARRA SUPERIOR DO SITE */}
           <header className="shrink-0 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-8 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               <span className="truncate font-medium text-slate-300">
                 IFinityHub • Portal Acadêmico
               </span>
-              {preferencias.modoVisao !== "normal" && (
+              {preferencias.talkbackAtivo && (
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                  {perfilVisaoAtual.nome.split(" ")[0]}
+                  TalkBack Ativo
                 </span>
               )}
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
-              {/* Botão de Notificações na parte superior */}
+              {/* Botão rápido "Ler Tela" quando TalkBack estiver ligado */}
+              {preferencias.talkbackAtivo && (
+                <button
+                  type="button"
+                  onClick={lerResumoAbaAtual}
+                  title="Ler resumo da página atual em voz alta"
+                  className="px-3 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25 transition text-xs font-semibold inline-flex items-center gap-1.5"
+                >
+                  <span>🔊</span>
+                  <span className="hidden sm:inline">Ler Página</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setPainelNotifAberto((v) => !v)}
@@ -1711,22 +1874,25 @@
                 <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800/70 pb-5">
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                      Personalização & Sistema
+                      Personalização & Inclusão
                     </span>
                     <h2 className="text-2xl font-bold text-white mt-0.5">
                       Preferências & Configurações
                     </h2>
                     <p className="text-slate-400 text-sm mt-1">
-                      Gerencie os recursos da Barra de Acessibilidade, perfis de
-                      daltonismo, notificações e sessão do portal.
+                      Gerencie a Barra de Acessibilidade, o Leitor de Tela
+                      (TalkBack), alertas visuais para deficiência auditiva e
+                      perfis de daltonismo.
                     </p>
                   </div>
 
                   {temAcessibilidadeAtiva && (
                     <button
-                      onClick={() =>
-                        setPreferencias({ ...a11yService.PREFS_PADRAO })
-                      }
+                      onClick={() => {
+                        a11yService.pararFala();
+                        setLegendaAtual("");
+                        setPreferencias({ ...a11yService.PREFS_PADRAO });
+                      }}
                       className="self-start sm:self-auto text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 transition"
                     >
                       Restaurar Padrão
@@ -1752,14 +1918,14 @@
                           Barra de Acessibilidade
                         </h3>
                         <p className="text-xs text-slate-400">
-                          Controles rápidos de tipografia, contraste, leitura e
-                          movimento
+                          Controles rápidos de leitura em voz alta, alertas
+                          visuais, tipografia e contraste
                         </p>
                       </div>
                     </div>
 
                     <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
-                      Escala atual:{" "}
+                      Fonte:{" "}
                       <strong className="text-emerald-400">
                         {preferencias.escalaFonte}%
                       </strong>
@@ -1878,6 +2044,161 @@
                   </div>
                 </section>
 
+                {/* DEFICIÊNCIA VISUAL (TALKBACK) E DEFICIÊNCIA AUDITIVA */}
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Card TalkBack / Leitor de Tela */}
+                  <div
+                    className={`rounded-2xl p-6 border transition-all space-y-4 ${
+                      preferencias.talkbackAtivo
+                        ? "bg-slate-900 border-emerald-500/60 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.22)]"
+                        : "bg-slate-900/70 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                          Deficiência Visual
+                        </span>
+                        <h3 className="text-lg font-bold text-white mt-0.5">
+                          Modo TalkBack (Leitor de Tela)
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        aria-pressed={preferencias.talkbackAtivo}
+                        onClick={() => {
+                          const proximo = !preferencias.talkbackAtivo;
+                          atualizarPreferencia("talkbackAtivo", proximo);
+                          if (proximo) {
+                            a11yService.falarTexto(
+                              "Modo TalkBack ativado. Toque ou navegue pelo teclado sobre qualquer item para ouvir a leitura em português.",
+                              preferencias.velocidadeVoz
+                            );
+                          } else {
+                            a11yService.pararFala();
+                          }
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition ${
+                          preferencias.talkbackAtivo
+                            ? "bg-emerald-600 border-emerald-500 text-white"
+                            : "bg-slate-950 border-slate-700 text-slate-300 hover:border-emerald-500/40"
+                        }`}
+                      >
+                        {preferencias.talkbackAtivo ? "Ativado" : "Ativar"}
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Narra em voz alta (PT-BR) botões, abas, provas, prazos e
+                      campos de formulário ao tocar, clicar ou navegar via
+                      teclado (<kbd className="px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded text-[10px]">Tab</kbd>).
+                    </p>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-slate-400">Velocidade:</span>
+                        {[0.8, 1.0, 1.25, 1.5].map((vel) => (
+                          <button
+                            key={vel}
+                            type="button"
+                            onClick={() =>
+                              atualizarPreferencia("velocidadeVoz", vel)
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition ${
+                              preferencias.velocidadeVoz === vel
+                                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                                : "bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
+                            }`}
+                          >
+                            {vel}x
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          falarComSuporte(
+                            "Teste de voz do IFinityHub. Leitura de tela funcionando perfeitamente."
+                          )
+                        }
+                        className="text-xs font-semibold text-emerald-400 hover:underline"
+                      >
+                        Testar Voz 🔊
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Acessibilidade Auditiva */}
+                  <div
+                    className={`rounded-2xl p-6 border transition-all space-y-4 ${
+                      preferencias.alertasVisuaisAudicao ||
+                      preferencias.legendasVozAtivas
+                        ? "bg-slate-900 border-emerald-500/60 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.22)]"
+                        : "bg-slate-900/70 border-slate-800"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                        Deficiência Auditiva
+                      </span>
+                      <h3 className="text-lg font-bold text-white mt-0.5">
+                        Alertas Visuais & Legendas ao Vivo
+                      </h3>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Substitui sinais sonoros por sinalização luminosa na borda
+                      da tela quando novas provas ou editais são publicados e
+                      exibe transcrição visual na barra inferior.
+                    </p>
+
+                    <div className="space-y-2.5 pt-2 border-t border-slate-800/80">
+                      <label className="flex items-center justify-between gap-3 cursor-pointer">
+                        <span className="text-xs font-medium text-slate-200">
+                          Flash visual de alerta em novas publicações
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={preferencias.alertasVisuaisAudicao}
+                          onChange={(e) => {
+                            atualizarPreferencia(
+                              "alertasVisuaisAudicao",
+                              e.target.checked
+                            );
+                            if (e.target.checked) dispararFlashVisual();
+                          }}
+                          className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                        />
+                      </label>
+
+                      <label className="flex items-center justify-between gap-3 cursor-pointer">
+                        <span className="text-xs font-medium text-slate-200">
+                          Exibir barra de legendas / transcrição visual
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={preferencias.legendasVozAtivas}
+                          onChange={(e) => {
+                            atualizarPreferencia(
+                              "legendasVozAtivas",
+                              e.target.checked
+                            );
+                            if (e.target.checked) {
+                              setLegendaAtual(
+                                "Legendas visuais ativadas: todas as notificações e leituras aparecerão aqui."
+                              );
+                            } else {
+                              setLegendaAtual("");
+                            }
+                          }}
+                          className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </section>
+
                 {/* PERFIS DE DALTONISMO / VISÃO */}
                 <section className="space-y-4">
                   <div>
@@ -1984,56 +2305,6 @@
                       className="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0"
                     />
                   </label>
-
-                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                        Pré-visualização em Tempo Real
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        Modo:{" "}
-                        <strong className="text-white">
-                          {perfilVisaoAtual.nome}
-                        </strong>
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                      <span
-                        style={{
-                          backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
-                          color: perfilVisaoAtual.coresEventos.prova,
-                          borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                      >
-                        ● PROVA — Matemática
-                      </span>
-                      <span
-                        style={{
-                          backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
-                          color: perfilVisaoAtual.coresEventos.dever,
-                          borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                      >
-                        ▲ DEVER — Lista de POO
-                      </span>
-                      <span
-                        style={{
-                          backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
-                          color: perfilVisaoAtual.coresEventos.evento,
-                          borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                      >
-                        ■ EVENTO — Mostra Científica
-                      </span>
-                      <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
-                        ✓ Destaque Principal
-                      </span>
-                    </div>
-                  </div>
                 </section>
 
                 {/* NOTIFICAÇÕES, SINCRONIZAÇÃO E CONTA */}
