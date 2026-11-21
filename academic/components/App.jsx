@@ -649,25 +649,12 @@
             </svg>
           ),
         },
-        {
-          id: "preferencias",
-          title: "Configurações",
-          description: "Acessibilidade e sistema",
-          meta: temAcessibilidadeAtiva ? "Ativo" : undefined,
-          icon: (
-            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          ),
-        },
       ],
       [
         eventos.length,
         editais.length,
         materiais.length,
         forumPosts.length,
-        temAcessibilidadeAtiva,
       ]
     );
 
@@ -1014,7 +1001,7 @@
       <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
         <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0 overflow-y-auto">
           <div>
-            <div className="flex flex-col items-center text-center mb-4">
+            <div className="flex flex-col items-center text-center mb-5">
               <button
                 onClick={() => setMostrarLanding(true)}
                 title="Voltar para a página inicial"
@@ -1029,27 +1016,6 @@
               <span className="text-xs text-slate-400">
                 2º Téc. Informática • IF Goiano
               </span>
-            </div>
-
-            <div className="mb-4">
-              <button
-                onClick={() => setPainelNotifAberto((v) => !v)}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-emerald-500/40 transition text-xs"
-              >
-                <span className="flex items-center gap-2 font-semibold text-slate-200">
-                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                  </svg>
-                  Notificações
-                </span>
-                {naoLidas > 0 ? (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold text-[11px]">
-                    {naoLidas}
-                  </span>
-                ) : (
-                  <span className="text-slate-500 text-[11px]">Em dia</span>
-                )}
-              </button>
             </div>
 
             <AnimatedList
@@ -1135,978 +1101,1030 @@
           </div>
         </aside>
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-          {aba === "dashboard" && (
-            <div className="max-w-5xl mx-auto space-y-6">
-              <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-800/70 pb-4">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                    Visão Geral da Turma
-                  </span>
-                  <h2 className="text-2xl font-bold text-white mt-0.5">
-                    Mural de Atividades
-                  </h2>
-                </div>
-                <p className="text-slate-500 text-xs">
-                  Atividades expiradas são removidas automaticamente após o prazo.
-                </p>
-              </header>
-
-              {temPermissao("criar_provas") && (
-                <form
-                  onSubmit={salvarEvento}
-                  className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-emerald-400">
-                      {editandoId
-                        ? "Editando Atividade"
-                        : "Adicionar Nova Atividade"}
-                    </h3>
-                    {editandoId && (
-                      <button
-                        type="button"
-                        onClick={cancelarEdicao}
-                        className="text-xs text-slate-400 hover:text-white underline"
-                      >
-                        Cancelar edição
-                      </button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Título (Ex: Prova de Matemática)"
-                      value={titulo}
-                      onChange={(e) => setTitulo(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      required
-                    />
-                    <select
-                      value={tipo}
-                      onChange={(e) => setTipo(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                    >
-                      <option value="prova">Prova</option>
-                      <option value="dever">Dever de Casa</option>
-                      <option value="evento">Evento / Reunião</option>
-                    </select>
-                    <input
-                      type="date"
-                      value={dataHora}
-                      onChange={(e) => setDataHora(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Detalhes (Opcional)"
-                      value={descricao}
-                      onChange={(e) => setDescricao(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition"
-                  >
-                    {editandoId ? "Salvar Alterações" : "Publicar"}
-                  </button>
-                </form>
+        {/* Área Direita com Barra Superior Fixa + Conteúdo */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          {/* BARRA SUPERIOR DO SITE */}
+          <header className="shrink-0 bg-slate-900/70 backdrop-blur-md border-b border-slate-800/80 px-4 md:px-8 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span className="truncate font-medium text-slate-300">
+                IFinityHub • Portal Acadêmico
+              </span>
+              {preferencias.modoVisao !== "normal" && (
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                  {perfilVisaoAtual.nome.split(" ")[0]}
+                </span>
               )}
+            </div>
 
-              {itensMural.length > 0 ? (
-                <AnimatedList
-                  items={itensMural}
-                  animation="pop"
-                  theme="dark"
-                  accentColor={perfilVisaoAtual.destaqueHex}
-                  width="100%"
-                  maxHeight={560}
-                  radius={14}
-                  gap={10}
-                  stagger={0.05}
-                  fadeSize={40}
-                  frame={true}
-                  showGradients={true}
-                  displayScrollbar={true}
-                  selectOnHover={true}
-                  enableArrowNavigation={true}
-                  loop={false}
-                  animateOnce={false}
-                  initialSelectedIndex={-1}
-                  renderItem={(evt) => (
-                    <div className="flex items-center justify-between w-full gap-3 min-w-0">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <span
-                          className="animated-list__lead"
-                          style={evt.iconStyle}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Botão de Notificações na parte superior */}
+              <button
+                type="button"
+                onClick={() => setPainelNotifAberto((v) => !v)}
+                title="Central de Notificações"
+                className="relative px-3 py-2 rounded-xl bg-slate-950/90 border border-slate-800 hover:border-emerald-500/40 text-slate-200 hover:text-emerald-400 transition text-xs font-semibold inline-flex items-center gap-2"
+              >
+                <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                </svg>
+                <span className="hidden sm:inline">Notificações</span>
+                {naoLidas > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px] leading-none">
+                    {naoLidas}
+                  </span>
+                )}
+              </button>
+
+              {/* BOTÃO DE PREFERÊNCIAS NA PARTE SUPERIOR */}
+              <button
+                type="button"
+                onClick={() => setAba("preferencias")}
+                title="Abrir Preferências e Barra de Acessibilidade"
+                className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                  aba === "preferencias"
+                    ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_6px_18px_-4px_rgba(16,185,129,0.5)]"
+                    : temAcessibilidadeAtiva
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
+                      : "bg-slate-950/90 border-slate-800 hover:border-emerald-500/40 text-slate-200 hover:text-emerald-400"
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                <span>Preferências</span>
+                {temAcessibilidadeAtiva && aba !== "preferencias" && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                )}
+              </button>
+            </div>
+          </header>
+
+          <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+            {aba === "dashboard" && (
+              <div className="max-w-5xl mx-auto space-y-6">
+                <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-800/70 pb-4">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                      Visão Geral da Turma
+                    </span>
+                    <h2 className="text-2xl font-bold text-white mt-0.5">
+                      Mural de Atividades
+                    </h2>
+                  </div>
+                  <p className="text-slate-500 text-xs">
+                    Atividades expiradas são removidas automaticamente após o prazo.
+                  </p>
+                </header>
+
+                {temPermissao("criar_provas") && (
+                  <form
+                    onSubmit={salvarEvento}
+                    className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-emerald-400">
+                        {editandoId
+                          ? "Editando Atividade"
+                          : "Adicionar Nova Atividade"}
+                      </h3>
+                      {editandoId && (
+                        <button
+                          type="button"
+                          onClick={cancelarEdicao}
+                          className="text-xs text-slate-400 hover:text-white underline"
                         >
-                          {evt.icon}
-                        </span>
-                        <div className="animated-list__text">
-                          <div className="flex items-center gap-2">
-                            <span
-                              style={{ color: evt.color }}
-                              className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-950/70 border border-slate-800 shrink-0"
-                            >
-                              {evt.tipo}
-                            </span>
-                            <span className="animated-list__title">
-                              {evt.title}
+                          Cancelar edição
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Título (Ex: Prova de Matemática)"
+                        value={titulo}
+                        onChange={(e) => setTitulo(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <select
+                        value={tipo}
+                        onChange={(e) => setTipo(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                      >
+                        <option value="prova">Prova</option>
+                        <option value="dever">Dever de Casa</option>
+                        <option value="evento">Evento / Reunião</option>
+                      </select>
+                      <input
+                        type="date"
+                        value={dataHora}
+                        onChange={(e) => setDataHora(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Detalhes (Opcional)"
+                        value={descricao}
+                        onChange={(e) => setDescricao(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg transition"
+                    >
+                      {editandoId ? "Salvar Alterações" : "Publicar"}
+                    </button>
+                  </form>
+                )}
+
+                {itensMural.length > 0 ? (
+                  <AnimatedList
+                    items={itensMural}
+                    animation="pop"
+                    theme="dark"
+                    accentColor={perfilVisaoAtual.destaqueHex}
+                    width="100%"
+                    maxHeight={560}
+                    radius={14}
+                    gap={10}
+                    stagger={0.05}
+                    fadeSize={40}
+                    frame={true}
+                    showGradients={true}
+                    displayScrollbar={true}
+                    selectOnHover={true}
+                    enableArrowNavigation={true}
+                    loop={false}
+                    animateOnce={false}
+                    initialSelectedIndex={-1}
+                    renderItem={(evt) => (
+                      <div className="flex items-center justify-between w-full gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span
+                            className="animated-list__lead"
+                            style={evt.iconStyle}
+                          >
+                            {evt.icon}
+                          </span>
+                          <div className="animated-list__text">
+                            <div className="flex items-center gap-2">
+                              <span
+                                style={{ color: evt.color }}
+                                className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-950/70 border border-slate-800 shrink-0"
+                              >
+                                {evt.tipo}
+                              </span>
+                              <span className="animated-list__title">
+                                {evt.title}
+                              </span>
+                            </div>
+                            <span className="animated-list__description">
+                              {evt.description}
                             </span>
                           </div>
-                          <span className="animated-list__description">
-                            {evt.description}
+                        </div>
+
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <span className="animated-list__meta font-medium">
+                            {evt.meta}
                           </span>
+                          {temPermissao("editar_provas") && (
+                            <div
+                              className="flex gap-1.5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <button
+                                onClick={() => iniciarEdicao(evt)}
+                                className="bg-blue-500/10 text-blue-400 text-xs px-2.5 py-1 rounded-lg hover:bg-blue-500/20 transition"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                onClick={() => deletarEvento(evt.id)}
+                                className="bg-red-500/10 text-red-400 text-xs px-2.5 py-1 rounded-lg hover:bg-red-500/20 transition"
+                              >
+                                Apagar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  />
+                ) : (
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
+                    Nenhuma atividade agendada no momento.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {aba === "editais" && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <header>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    Editais Abertos de Projetos — IF Goiano
+                  </h2>
+                  <p className="text-slate-400 text-sm">
+                    Oportunidades de iniciação científica, extensão, monitoria e
+                    projetos estudantis com inscrição aberta.
+                  </p>
+                </header>
+
+                {temPermissao("publicar_editais") && (
+                  <form
+                    onSubmit={publicarEdital}
+                    className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
+                  >
+                    <h3 className="font-semibold text-emerald-400">
+                      Publicar Novo Edital
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Título do Projeto / Edital (Ex: PIBIC-EM 2026)"
+                        value={editalTitulo}
+                        onChange={(e) => setEditalTitulo(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <input
+                        type="url"
+                        placeholder="Link do Formulário (https://forms.gle/...)"
+                        value={editalLink}
+                        onChange={(e) => setEditalLink(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <input
+                        type="date"
+                        value={editalPrazo}
+                        onChange={(e) => setEditalPrazo(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        title="Prazo final de inscrição (Opcional)"
+                      />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setEditalFoto(e.target.files[0])}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-white"
+                        title="Foto ou banner do edital (Opcional)"
+                      />
+                      <textarea
+                        placeholder="Informações adicionais do edital (requisitos, bolsa, orientador, resumo...)"
+                        value={editalDescricao}
+                        onChange={(e) => setEditalDescricao(e.target.value)}
+                        rows={4}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white resize-none col-span-1 md:col-span-2"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={editalEnviando}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
+                    >
+                      {editalEnviando ? "Publicando..." : "Publicar Edital"}
+                    </button>
+                  </form>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {editais.map((edital) => (
+                    <article
+                      key={edital.id}
+                      className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg"
+                    >
+                      <div>
+                        {edital.imagem_url && (
+                          <img
+                            src={edital.imagem_url}
+                            alt={edital.titulo}
+                            className="w-full h-48 object-cover border-b border-slate-800"
+                          />
+                        )}
+                        <div className="p-5 space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-lg font-bold text-white leading-snug">
+                              {edital.titulo}
+                            </h3>
+                            {edital.prazo && (
+                              <span className="shrink-0 text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full">
+                                Até {edital.prazo}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-300 text-sm whitespace-pre-line">
+                            {edital.descricao}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0">
-                        <span className="animated-list__meta font-medium">
-                          {evt.meta}
-                        </span>
-                        {temPermissao("editar_provas") && (
-                          <div
-                            className="flex gap-1.5"
-                            onClick={(e) => e.stopPropagation()}
+                      <div className="p-5 pt-0 flex items-center justify-between gap-3">
+                        <a
+                          href={edital.link_formulario}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl transition text-sm"
+                        >
+                          Acessar Formulário ↗
+                        </a>
+                        {temPermissao("publicar_editais") && (
+                          <button
+                            onClick={() => deletarEdital(edital.id)}
+                            className="bg-red-500/10 text-red-400 px-3 py-2.5 rounded-xl hover:bg-red-500/20 transition text-sm"
                           >
-                            <button
-                              onClick={() => iniciarEdicao(evt)}
-                              className="bg-blue-500/10 text-blue-400 text-xs px-2.5 py-1 rounded-lg hover:bg-blue-500/20 transition"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => deletarEvento(evt.id)}
-                              className="bg-red-500/10 text-red-400 text-xs px-2.5 py-1 rounded-lg hover:bg-red-500/20 transition"
-                            >
-                              Apagar
-                            </button>
-                          </div>
+                            Apagar
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+
+                  {editais.length === 0 && (
+                    <p className="text-slate-500 col-span-full">
+                      Nenhum edital aberto publicado no momento.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {aba === "calendario" && (
+              <div className="max-w-5xl mx-auto space-y-4">
+                <h2 className="text-2xl font-bold text-white mb-4">Calendário</h2>
+                <div
+                  ref={calendarRef}
+                  className="bg-slate-900 p-4 rounded-xl border border-slate-800"
+                ></div>
+              </div>
+            )}
+
+            {aba === "materiais" && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <h2 className="text-2xl font-bold text-white mb-4">
+                  Materiais & PDFs
+                </h2>
+
+                {temPermissao("publicar_materiais") && (
+                  <form
+                    onSubmit={publicarMaterial}
+                    className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Nome do Material"
+                        value={nomeMaterial}
+                        onChange={(e) => setNomeMaterial(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Disciplina"
+                        value={disciplina}
+                        onChange={(e) => setDisciplina(e.target.value)}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
+                        required
+                      />
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={(e) => setArquivoPDF(e.target.files[0])}
+                        className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-white col-span-1 md:col-span-2"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={enviando}
+                      className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
+                    >
+                      {enviando ? "Enviando..." : "Fazer Upload"}
+                    </button>
+                  </form>
+                )}
+
+                <div className="grid grid-cols-1 gap-4 mt-6">
+                  {materiais.map((mat) => (
+                    <div
+                      key={mat.id}
+                      className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center"
+                    >
+                      <div>
+                        <span className="text-blue-400 font-bold text-sm mr-2">
+                          {mat.disciplina}
+                        </span>
+                        <span className="text-white font-medium">{mat.nome}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href={mat.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="bg-slate-800 text-emerald-400 px-3 py-1 rounded hover:bg-slate-700 transition"
+                        >
+                          Baixar
+                        </a>
+                        {temPermissao("publicar_materiais") && (
+                          <button
+                            onClick={() => deletarMaterial(mat.id)}
+                            className="bg-red-500/10 text-red-400 px-3 py-1 rounded hover:bg-red-500/20 transition"
+                          >
+                            Apagar
+                          </button>
                         )}
                       </div>
                     </div>
+                  ))}
+                  {materiais.length === 0 && (
+                    <p className="text-slate-500">Nenhum material disponível.</p>
                   )}
-                />
-              ) : (
-                <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
-                  Nenhuma atividade agendada no momento.
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {aba === "editais" && (
-            <div className="max-w-5xl mx-auto space-y-8">
-              <header>
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  Editais Abertos de Projetos — IF Goiano
-                </h2>
-                <p className="text-slate-400 text-sm">
-                  Oportunidades de iniciação científica, extensão, monitoria e
-                  projetos estudantis com inscrição aberta.
-                </p>
-              </header>
+            {aba === "forum" && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <header>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    Fórum de Sugestões
+                  </h2>
+                  <p className="text-slate-400 text-sm">
+                    Espaço para sugerir melhorias construtivas nos métodos de
+                    ensino. Mensagens com linguagem ofensiva são bloqueadas
+                    automaticamente antes de serem publicadas.
+                  </p>
+                </header>
 
-              {temPermissao("publicar_editais") && (
                 <form
-                  onSubmit={publicarEdital}
+                  onSubmit={publicarForum}
                   className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
                 >
-                  <h3 className="font-semibold text-emerald-400">
-                    Publicar Novo Edital
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4">
                     <input
                       type="text"
-                      placeholder="Título do Projeto / Edital (Ex: PIBIC-EM 2026)"
-                      value={editalTitulo}
-                      onChange={(e) => setEditalTitulo(e.target.value)}
+                      placeholder="Seu nome"
+                      value={forumNome}
+                      onChange={(e) => setForumNome(e.target.value)}
                       className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
                       required
-                    />
-                    <input
-                      type="url"
-                      placeholder="Link do Formulário (https://forms.gle/...)"
-                      value={editalLink}
-                      onChange={(e) => setEditalLink(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      required
-                    />
-                    <input
-                      type="date"
-                      value={editalPrazo}
-                      onChange={(e) => setEditalPrazo(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      title="Prazo final de inscrição (Opcional)"
-                    />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setEditalFoto(e.target.files[0])}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-white"
-                      title="Foto ou banner do edital (Opcional)"
                     />
                     <textarea
-                      placeholder="Informações adicionais do edital (requisitos, bolsa, orientador, resumo...)"
-                      value={editalDescricao}
-                      onChange={(e) => setEditalDescricao(e.target.value)}
+                      placeholder="O que você acha que poderia melhorar? (seja construtivo)"
+                      value={forumTexto}
+                      onChange={(e) => setForumTexto(e.target.value)}
                       rows={4}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white resize-none col-span-1 md:col-span-2"
+                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white resize-none"
                       required
                     />
                   </div>
 
+                  {forumErro && (
+                    <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                      {forumErro}
+                    </p>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={editalEnviando}
+                    disabled={forumEnviando}
                     className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
                   >
-                    {editalEnviando ? "Publicando..." : "Publicar Edital"}
+                    {forumEnviando ? "Enviando..." : "Publicar Sugestão"}
                   </button>
                 </form>
-              )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {editais.map((edital) => (
-                  <article
-                    key={edital.id}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden flex flex-col justify-between shadow-lg"
-                  >
-                    <div>
-                      {edital.imagem_url && (
-                        <img
-                          src={edital.imagem_url}
-                          alt={edital.titulo}
-                          className="w-full h-48 object-cover border-b border-slate-800"
-                        />
+                <div className="grid grid-cols-1 gap-4">
+                  {forumPosts.map((post) => (
+                    <div
+                      key={post.id}
+                      className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-start"
+                    >
+                      <div>
+                        <span className="text-emerald-400 font-bold text-sm">
+                          {post.nome}
+                        </span>
+                        <p className="text-slate-200 text-sm mt-1">{post.texto}</p>
+                        {post.criado_em && (
+                          <p className="text-slate-500 text-xs mt-2">
+                            {new Date(post.criado_em).toLocaleDateString("pt-BR")}
+                          </p>
+                        )}
+                      </div>
+                      {temPermissao("moderar_forum") && (
+                        <button
+                          onClick={() => deletarForumPost(post.id)}
+                          className="bg-red-500/10 text-red-400 px-3 py-1 rounded hover:bg-red-500/20 transition shrink-0 ml-4"
+                        >
+                          Apagar
+                        </button>
                       )}
-                      <div className="p-5 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="text-lg font-bold text-white leading-snug">
-                            {edital.titulo}
-                          </h3>
-                          {edital.prazo && (
-                            <span className="shrink-0 text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full">
-                              Até {edital.prazo}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-slate-300 text-sm whitespace-pre-line">
-                          {edital.descricao}
+                    </div>
+                  ))}
+                  {forumPosts.length === 0 && (
+                    <p className="text-slate-500">
+                      Nenhuma sugestão publicada ainda.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {aba === "grade" && (
+              <div className="max-w-6xl mx-auto space-y-6">
+                <header>
+                  <h2 className="text-2xl font-bold text-white mb-1">
+                    Grade Horária Semanal
+                  </h2>
+                  <p className="text-slate-400 text-sm">{gradeHoraria.turma}</p>
+                </header>
+
+                <div className="overflow-x-auto bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                  <table className="w-full text-left border-collapse text-xs md:text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-800 text-slate-400">
+                        <th className="p-3 font-semibold w-24">Horário</th>
+                        <th className="p-3 font-semibold">Segunda-feira</th>
+                        <th className="p-3 font-semibold">Terça-feira</th>
+                        <th className="p-3 font-semibold">Quarta-feira</th>
+                        <th className="p-3 font-semibold">Quinta-feira</th>
+                        <th className="p-3 font-semibold">Sexta-feira</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                      <tr className="bg-slate-950/40">
+                        <td
+                          colSpan="6"
+                          className="p-2 text-xs font-bold text-emerald-400 tracking-wider uppercase"
+                        >
+                          Turno Matutino
+                        </td>
+                      </tr>
+                      {slotsMatutino.map((slot, idx) => (
+                        <tr key={`mat-${idx}`}>
+                          <td className="p-3 font-medium text-slate-400">
+                            {slot.horario}
+                          </td>
+                          {renderCelulaAula(slot.dias.segunda)}
+                          {renderCelulaAula(slot.dias.terca)}
+                          {renderCelulaAula(slot.dias.quarta)}
+                          {renderCelulaAula(slot.dias.quinta)}
+                          {renderCelulaAula(slot.dias.sexta)}
+                        </tr>
+                      ))}
+
+                      <tr className="bg-slate-950/40">
+                        <td
+                          colSpan="6"
+                          className="p-2 text-xs font-bold text-amber-400 tracking-wider uppercase"
+                        >
+                          Turno Vespertino
+                        </td>
+                      </tr>
+                      {slotsVespertino.map((slot, idx) => (
+                        <tr key={`vesp-${idx}`}>
+                          <td className="p-3 font-medium text-slate-400">
+                            {slot.horario}
+                          </td>
+                          {renderCelulaAula(slot.dias.segunda)}
+                          {renderCelulaAula(slot.dias.terca)}
+                          {renderCelulaAula(slot.dias.quarta)}
+                          {renderCelulaAula(slot.dias.quinta)}
+                          {renderCelulaAula(slot.dias.sexta)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {aba === "preferencias" && (
+              <div className="max-w-5xl mx-auto space-y-8">
+                <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800/70 pb-5">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                      Personalização & Sistema
+                    </span>
+                    <h2 className="text-2xl font-bold text-white mt-0.5">
+                      Preferências & Configurações
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      Gerencie os recursos da Barra de Acessibilidade, perfis de
+                      daltonismo, notificações e sessão do portal.
+                    </p>
+                  </div>
+
+                  {temAcessibilidadeAtiva && (
+                    <button
+                      onClick={() =>
+                        setPreferencias({ ...a11yService.PREFS_PADRAO })
+                      }
+                      className="self-start sm:self-auto text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 transition"
+                    >
+                      Restaurar Padrão
+                    </button>
+                  )}
+                </header>
+
+                {/* BARRA DE ACESSIBILIDADE DEDICADA */}
+                <section
+                  aria-label="Barra de Acessibilidade"
+                  className="bg-gradient-to-b from-slate-900 to-slate-900/70 border border-emerald-500/30 rounded-2xl p-5 space-y-4 shadow-xl"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                      </span>
+                      <div>
+                        <h3 className="text-base font-bold text-white">
+                          Barra de Acessibilidade
+                        </h3>
+                        <p className="text-xs text-slate-400">
+                          Controles rápidos de tipografia, contraste, leitura e
+                          movimento
                         </p>
                       </div>
                     </div>
 
-                    <div className="p-5 pt-0 flex items-center justify-between gap-3">
-                      <a
-                        href={edital.link_formulario}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 text-center bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl transition text-sm"
-                      >
-                        Acessar Formulário ↗
-                      </a>
-                      {temPermissao("publicar_editais") && (
-                        <button
-                          onClick={() => deletarEdital(edital.id)}
-                          className="bg-red-500/10 text-red-400 px-3 py-2.5 rounded-xl hover:bg-red-500/20 transition text-sm"
-                        >
-                          Apagar
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
-
-                {editais.length === 0 && (
-                  <p className="text-slate-500 col-span-full">
-                    Nenhum edital aberto publicado no momento.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {aba === "calendario" && (
-            <div className="max-w-5xl mx-auto space-y-4">
-              <h2 className="text-2xl font-bold text-white mb-4">Calendário</h2>
-              <div
-                ref={calendarRef}
-                className="bg-slate-900 p-4 rounded-xl border border-slate-800"
-              ></div>
-            </div>
-          )}
-
-          {aba === "materiais" && (
-            <div className="max-w-5xl mx-auto space-y-8">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Materiais & PDFs
-              </h2>
-
-              {temPermissao("publicar_materiais") && (
-                <form
-                  onSubmit={publicarMaterial}
-                  className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Nome do Material"
-                      value={nomeMaterial}
-                      onChange={(e) => setNomeMaterial(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Disciplina"
-                      value={disciplina}
-                      onChange={(e) => setDisciplina(e.target.value)}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                      required
-                    />
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={(e) => setArquivoPDF(e.target.files[0])}
-                      className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-white col-span-1 md:col-span-2"
-                      required
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={enviando}
-                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
-                  >
-                    {enviando ? "Enviando..." : "Fazer Upload"}
-                  </button>
-                </form>
-              )}
-
-              <div className="grid grid-cols-1 gap-4 mt-6">
-                {materiais.map((mat) => (
-                  <div
-                    key={mat.id}
-                    className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center"
-                  >
-                    <div>
-                      <span className="text-blue-400 font-bold text-sm mr-2">
-                        {mat.disciplina}
-                      </span>
-                      <span className="text-white font-medium">{mat.nome}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <a
-                        href={mat.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="bg-slate-800 text-emerald-400 px-3 py-1 rounded hover:bg-slate-700 transition"
-                      >
-                        Baixar
-                      </a>
-                      {temPermissao("publicar_materiais") && (
-                        <button
-                          onClick={() => deletarMaterial(mat.id)}
-                          className="bg-red-500/10 text-red-400 px-3 py-1 rounded hover:bg-red-500/20 transition"
-                        >
-                          Apagar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {materiais.length === 0 && (
-                  <p className="text-slate-500">Nenhum material disponível.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {aba === "forum" && (
-            <div className="max-w-5xl mx-auto space-y-8">
-              <header>
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  Fórum de Sugestões
-                </h2>
-                <p className="text-slate-400 text-sm">
-                  Espaço para sugerir melhorias construtivas nos métodos de
-                  ensino. Mensagens com linguagem ofensiva são bloqueadas
-                  automaticamente antes de serem publicadas.
-                </p>
-              </header>
-
-              <form
-                onSubmit={publicarForum}
-                className="bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4"
-              >
-                <div className="grid grid-cols-1 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Seu nome"
-                    value={forumNome}
-                    onChange={(e) => setForumNome(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white"
-                    required
-                  />
-                  <textarea
-                    placeholder="O que você acha que poderia melhorar? (seja construtivo)"
-                    value={forumTexto}
-                    onChange={(e) => setForumTexto(e.target.value)}
-                    rows={4}
-                    className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-white resize-none"
-                    required
-                  />
-                </div>
-
-                {forumErro && (
-                  <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-                    {forumErro}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={forumEnviando}
-                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-2 px-6 rounded-lg transition"
-                >
-                  {forumEnviando ? "Enviando..." : "Publicar Sugestão"}
-                </button>
-              </form>
-
-              <div className="grid grid-cols-1 gap-4">
-                {forumPosts.map((post) => (
-                  <div
-                    key={post.id}
-                    className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-start"
-                  >
-                    <div>
-                      <span className="text-emerald-400 font-bold text-sm">
-                        {post.nome}
-                      </span>
-                      <p className="text-slate-200 text-sm mt-1">{post.texto}</p>
-                      {post.criado_em && (
-                        <p className="text-slate-500 text-xs mt-2">
-                          {new Date(post.criado_em).toLocaleDateString("pt-BR")}
-                        </p>
-                      )}
-                    </div>
-                    {temPermissao("moderar_forum") && (
-                      <button
-                        onClick={() => deletarForumPost(post.id)}
-                        className="bg-red-500/10 text-red-400 px-3 py-1 rounded hover:bg-red-500/20 transition shrink-0 ml-4"
-                      >
-                        Apagar
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {forumPosts.length === 0 && (
-                  <p className="text-slate-500">
-                    Nenhuma sugestão publicada ainda.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {aba === "grade" && (
-            <div className="max-w-6xl mx-auto space-y-6">
-              <header>
-                <h2 className="text-2xl font-bold text-white mb-1">
-                  Grade Horária Semanal
-                </h2>
-                <p className="text-slate-400 text-sm">{gradeHoraria.turma}</p>
-              </header>
-
-              <div className="overflow-x-auto bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
-                <table className="w-full text-left border-collapse text-xs md:text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-slate-400">
-                      <th className="p-3 font-semibold w-24">Horário</th>
-                      <th className="p-3 font-semibold">Segunda-feira</th>
-                      <th className="p-3 font-semibold">Terça-feira</th>
-                      <th className="p-3 font-semibold">Quarta-feira</th>
-                      <th className="p-3 font-semibold">Quinta-feira</th>
-                      <th className="p-3 font-semibold">Sexta-feira</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                    <tr className="bg-slate-950/40">
-                      <td
-                        colSpan="6"
-                        className="p-2 text-xs font-bold text-emerald-400 tracking-wider uppercase"
-                      >
-                        Turno Matutino
-                      </td>
-                    </tr>
-                    {slotsMatutino.map((slot, idx) => (
-                      <tr key={`mat-${idx}`}>
-                        <td className="p-3 font-medium text-slate-400">
-                          {slot.horario}
-                        </td>
-                        {renderCelulaAula(slot.dias.segunda)}
-                        {renderCelulaAula(slot.dias.terca)}
-                        {renderCelulaAula(slot.dias.quarta)}
-                        {renderCelulaAula(slot.dias.quinta)}
-                        {renderCelulaAula(slot.dias.sexta)}
-                      </tr>
-                    ))}
-
-                    <tr className="bg-slate-950/40">
-                      <td
-                        colSpan="6"
-                        className="p-2 text-xs font-bold text-amber-400 tracking-wider uppercase"
-                      >
-                        Turno Vespertino
-                      </td>
-                    </tr>
-                    {slotsVespertino.map((slot, idx) => (
-                      <tr key={`vesp-${idx}`}>
-                        <td className="p-3 font-medium text-slate-400">
-                          {slot.horario}
-                        </td>
-                        {renderCelulaAula(slot.dias.segunda)}
-                        {renderCelulaAula(slot.dias.terca)}
-                        {renderCelulaAula(slot.dias.quarta)}
-                        {renderCelulaAula(slot.dias.quinta)}
-                        {renderCelulaAula(slot.dias.sexta)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {aba === "preferencias" && (
-            <div className="max-w-5xl mx-auto space-y-8">
-              <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800/70 pb-5">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                    Personalização & Sistema
-                  </span>
-                  <h2 className="text-2xl font-bold text-white mt-0.5">
-                    Configurações
-                  </h2>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Gerencie os recursos da Barra de Acessibilidade, perfis de
-                    daltonismo, notificações e sessão do portal.
-                  </p>
-                </div>
-
-                {temAcessibilidadeAtiva && (
-                  <button
-                    onClick={() =>
-                      setPreferencias({ ...a11yService.PREFS_PADRAO })
-                    }
-                    className="self-start sm:self-auto text-xs font-semibold px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200 transition"
-                  >
-                    Restaurar Padrão
-                  </button>
-                )}
-              </header>
-
-              {/* BARRA DE ACESSIBILIDADE DEDICADA */}
-              <section
-                aria-label="Barra de Acessibilidade"
-                className="bg-gradient-to-b from-slate-900 to-slate-900/70 border border-emerald-500/30 rounded-2xl p-5 space-y-4 shadow-xl"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
+                    <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
+                      Escala atual:{" "}
+                      <strong className="text-emerald-400">
+                        {preferencias.escalaFonte}%
+                      </strong>
                     </span>
-                    <div>
-                      <h3 className="text-base font-bold text-white">
-                        Barra de Acessibilidade
-                      </h3>
-                      <p className="text-xs text-slate-400">
-                        Controles rápidos de tipografia, contraste, leitura e
-                        movimento
-                      </p>
-                    </div>
                   </div>
 
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
-                    Escala atual:{" "}
-                    <strong className="text-emerald-400">
-                      {preferencias.escalaFonte}%
-                    </strong>
-                  </span>
-                </div>
-
-                {/* Controles da Barra */}
-                <div
-                  role="toolbar"
-                  aria-label="Ferramentas de Acessibilidade"
-                  className="flex flex-wrap items-center gap-2.5"
-                >
-                  {/* Controle de Tamanho da Fonte */}
-                  <div className="inline-flex items-center rounded-xl bg-slate-950 border border-slate-800 p-1">
-                    <button
-                      type="button"
-                      onClick={() => alterarEscalaFonte(-5)}
-                      disabled={preferencias.escalaFonte <= 85}
-                      title="Diminuir tamanho da fonte"
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
-                    >
-                      A-
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => atualizarPreferencia("escalaFonte", 100)}
-                      title="Tamanho padrão da fonte (100%)"
-                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 hover:bg-slate-800 transition"
-                    >
-                      100%
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => alterarEscalaFonte(5)}
-                      disabled={preferencias.escalaFonte >= 125}
-                      title="Aumentar tamanho da fonte"
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
-                    >
-                      A+
-                    </button>
-                  </div>
-
-                  {/* Alto Contraste */}
-                  <button
-                    type="button"
-                    aria-pressed={preferencias.altoContrasteBordas}
-                    onClick={() =>
-                      atualizarPreferencia(
-                        "altoContrasteBordas",
-                        !preferencias.altoContrasteBordas
-                      )
-                    }
-                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
-                      preferencias.altoContrasteBordas
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
-                    }`}
+                  <div
+                    role="toolbar"
+                    aria-label="Ferramentas de Acessibilidade"
+                    className="flex flex-wrap items-center gap-2.5"
                   >
-                    <span>◐</span>
-                    <span>Alto Contraste</span>
-                  </button>
-
-                  {/* Espaçamento de Leitura */}
-                  <button
-                    type="button"
-                    aria-pressed={preferencias.espacamentoLeitura}
-                    onClick={() =>
-                      atualizarPreferencia(
-                        "espacamentoLeitura",
-                        !preferencias.espacamentoLeitura
-                      )
-                    }
-                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
-                      preferencias.espacamentoLeitura
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
-                    }`}
-                  >
-                    <span>≡</span>
-                    <span>Espaçamento de Leitura</span>
-                  </button>
-
-                  {/* Destacar Links e Foco */}
-                  <button
-                    type="button"
-                    aria-pressed={preferencias.destacarLinksBotoes}
-                    onClick={() =>
-                      atualizarPreferencia(
-                        "destacarLinksBotoes",
-                        !preferencias.destacarLinksBotoes
-                      )
-                    }
-                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
-                      preferencias.destacarLinksBotoes
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
-                    }`}
-                  >
-                    <span>⌘</span>
-                    <span>Destacar Links & Foco</span>
-                  </button>
-
-                  {/* Reduzir Animações */}
-                  <button
-                    type="button"
-                    aria-pressed={preferencias.reduzirAnimacoes}
-                    onClick={() =>
-                      atualizarPreferencia(
-                        "reduzirAnimacoes",
-                        !preferencias.reduzirAnimacoes
-                      )
-                    }
-                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
-                      preferencias.reduzirAnimacoes
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
-                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
-                    }`}
-                  >
-                    <span>⏸</span>
-                    <span>Reduzir Animações</span>
-                  </button>
-                </div>
-              </section>
-
-              {/* PERFIS DE DALTONISMO / VISÃO */}
-              <section className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                    Perfil de Percepção de Cores (Daltonismo)
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Adapta automaticamente as cores de provas, deveres, eventos
-                    no calendário e destaques do sistema.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {Object.values(a11yService.PERFIS_VISAO).map((perfil) => {
-                    const selecionado = preferencias.modoVisao === perfil.id;
-                    return (
+                    <div className="inline-flex items-center rounded-xl bg-slate-950 border border-slate-800 p-1">
                       <button
-                        key={perfil.id}
                         type="button"
-                        onClick={() =>
-                          atualizarPreferencia("modoVisao", perfil.id)
-                        }
-                        className={`text-left rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between gap-4 ${
-                          selecionado
-                            ? "bg-slate-900 border-emerald-500/60 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.25)]"
-                            : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
-                        }`}
+                        onClick={() => alterarEscalaFonte(-5)}
+                        disabled={preferencias.escalaFonte <= 85}
+                        title="Diminuir tamanho da fonte"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
                       >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-white text-base">
-                              {perfil.nome}
-                            </span>
-                            <span
-                              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
-                                selecionado
-                                  ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                                  : "bg-slate-950 text-slate-500 border border-slate-800"
-                              }`}
-                            >
-                              {selecionado ? "Ativo" : "Selecionar"}
-                            </span>
-                          </div>
-                          <p className="text-xs font-medium text-emerald-400">
-                            {perfil.subtitulo}
-                          </p>
-                          <p className="text-xs text-slate-400 leading-relaxed">
-                            {perfil.descricao}
-                          </p>
-                        </div>
-
-                        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                          <span className="text-[11px] text-slate-400">
-                            Paleta de categorias:
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span
-                              title="Prova"
-                              style={{ backgroundColor: perfil.coresEventos.prova }}
-                              className="w-5 h-5 rounded-full border border-white/20"
-                            />
-                            <span
-                              title="Dever"
-                              style={{ backgroundColor: perfil.coresEventos.dever }}
-                              className="w-5 h-5 rounded-full border border-white/20"
-                            />
-                            <span
-                              title="Evento"
-                              style={{ backgroundColor: perfil.coresEventos.evento }}
-                              className="w-5 h-5 rounded-full border border-white/20"
-                            />
-                            <span
-                              title="Destaque"
-                              style={{ backgroundColor: perfil.destaqueHex }}
-                              className="w-5 h-5 rounded-full border border-white/20"
-                            />
-                          </div>
-                        </div>
+                        A-
                       </button>
-                    );
-                  })}
-                </div>
+                      <button
+                        type="button"
+                        onClick={() => atualizarPreferencia("escalaFonte", 100)}
+                        title="Tamanho padrão da fonte (100%)"
+                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 hover:bg-slate-800 transition"
+                      >
+                        100%
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => alterarEscalaFonte(5)}
+                        disabled={preferencias.escalaFonte >= 125}
+                        title="Aumentar tamanho da fonte"
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
+                      >
+                        A+
+                      </button>
+                    </div>
 
-                {/* Filtro SVG em imagens */}
-                <label className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 cursor-pointer">
+                    <button
+                      type="button"
+                      aria-pressed={preferencias.altoContrasteBordas}
+                      onClick={() =>
+                        atualizarPreferencia(
+                          "altoContrasteBordas",
+                          !preferencias.altoContrasteBordas
+                        )
+                      }
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                        preferencias.altoContrasteBordas
+                          ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                      }`}
+                    >
+                      <span>◐</span>
+                      <span>Alto Contraste</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={preferencias.espacamentoLeitura}
+                      onClick={() =>
+                        atualizarPreferencia(
+                          "espacamentoLeitura",
+                          !preferencias.espacamentoLeitura
+                        )
+                      }
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                        preferencias.espacamentoLeitura
+                          ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                      }`}
+                    >
+                      <span>≡</span>
+                      <span>Espaçamento de Leitura</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={preferencias.destacarLinksBotoes}
+                      onClick={() =>
+                        atualizarPreferencia(
+                          "destacarLinksBotoes",
+                          !preferencias.destacarLinksBotoes
+                        )
+                      }
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                        preferencias.destacarLinksBotoes
+                          ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                      }`}
+                    >
+                      <span>⌘</span>
+                      <span>Destacar Links & Foco</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={preferencias.reduzirAnimacoes}
+                      onClick={() =>
+                        atualizarPreferencia(
+                          "reduzirAnimacoes",
+                          !preferencias.reduzirAnimacoes
+                        )
+                      }
+                      className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                        preferencias.reduzirAnimacoes
+                          ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                      }`}
+                    >
+                      <span>⏸</span>
+                      <span>Reduzir Animações</span>
+                    </button>
+                  </div>
+                </section>
+
+                {/* PERFIS DE DALTONISMO / VISÃO */}
+                <section className="space-y-4">
                   <div>
-                    <div className="font-semibold text-white text-sm">
-                      Aplicar Matriz de Compensação em Imagens e Banners
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Perfil de Percepção de Cores (Daltonismo)
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Adapta automaticamente as cores de provas, deveres, eventos
+                      no calendário e destaques do sistema.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {Object.values(a11yService.PERFIS_VISAO).map((perfil) => {
+                      const selecionado = preferencias.modoVisao === perfil.id;
+                      return (
+                        <button
+                          key={perfil.id}
+                          type="button"
+                          onClick={() =>
+                            atualizarPreferencia("modoVisao", perfil.id)
+                          }
+                          className={`text-left rounded-2xl p-5 border transition-all duration-300 flex flex-col justify-between gap-4 ${
+                            selecionado
+                              ? "bg-slate-900 border-emerald-500/60 shadow-[0_12px_30px_-10px_rgba(16,185,129,0.25)]"
+                              : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-white text-base">
+                                {perfil.nome}
+                              </span>
+                              <span
+                                className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                                  selecionado
+                                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                    : "bg-slate-950 text-slate-500 border border-slate-800"
+                                }`}
+                              >
+                                {selecionado ? "Ativo" : "Selecionar"}
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium text-emerald-400">
+                              {perfil.subtitulo}
+                            </p>
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              {perfil.descricao}
+                            </p>
+                          </div>
+
+                          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                            <span className="text-[11px] text-slate-400">
+                              Paleta de categorias:
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                title="Prova"
+                                style={{ backgroundColor: perfil.coresEventos.prova }}
+                                className="w-5 h-5 rounded-full border border-white/20"
+                              />
+                              <span
+                                title="Dever"
+                                style={{ backgroundColor: perfil.coresEventos.dever }}
+                                className="w-5 h-5 rounded-full border border-white/20"
+                              />
+                              <span
+                                title="Evento"
+                                style={{ backgroundColor: perfil.coresEventos.evento }}
+                                className="w-5 h-5 rounded-full border border-white/20"
+                              />
+                              <span
+                                title="Destaque"
+                                style={{ backgroundColor: perfil.destaqueHex }}
+                                className="w-5 h-5 rounded-full border border-white/20"
+                              />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <label className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 cursor-pointer">
+                    <div>
+                      <div className="font-semibold text-white text-sm">
+                        Aplicar Matriz de Compensação em Imagens e Banners
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Aplica filtro SVG de daltonismo sobre banners de editais e
+                        ilustrações quando um modo diferente de Normal Vision está
+                        ativo.
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400">
-                      Aplica filtro SVG de daltonismo sobre banners de editais e
-                      ilustrações quando um modo diferente de Normal Vision está
-                      ativo.
+                    <input
+                      type="checkbox"
+                      checked={preferencias.aplicarFiltroImagens}
+                      onChange={(e) =>
+                        atualizarPreferencia(
+                          "aplicarFiltroImagens",
+                          e.target.checked
+                        )
+                      }
+                      className="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0"
+                    />
+                  </label>
+
+                  <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        Pré-visualização em Tempo Real
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        Modo:{" "}
+                        <strong className="text-white">
+                          {perfilVisaoAtual.nome}
+                        </strong>
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <span
+                        style={{
+                          backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
+                          color: perfilVisaoAtual.coresEventos.prova,
+                          borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                      >
+                        ● PROVA — Matemática
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
+                          color: perfilVisaoAtual.coresEventos.dever,
+                          borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                      >
+                        ▲ DEVER — Lista de POO
+                      </span>
+                      <span
+                        style={{
+                          backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
+                          color: perfilVisaoAtual.coresEventos.evento,
+                          borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                      >
+                        ■ EVENTO — Mostra Científica
+                      </span>
+                      <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
+                        ✓ Destaque Principal
+                      </span>
                     </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={preferencias.aplicarFiltroImagens}
-                    onChange={(e) =>
-                      atualizarPreferencia(
-                        "aplicarFiltroImagens",
-                        e.target.checked
-                      )
-                    }
-                    className="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0"
-                  />
-                </label>
+                </section>
 
-                {/* Pré-visualização */}
-                <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                      Pré-visualização em Tempo Real
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      Modo:{" "}
+                {/* NOTIFICAÇÕES, SINCRONIZAÇÃO E CONTA */}
+                <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Notificações & Sincronização
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Status de notificações do navegador:{" "}
                       <strong className="text-white">
-                        {perfilVisaoAtual.nome}
+                        {permissaoNativa === "granted"
+                          ? "Ativadas"
+                          : permissaoNativa === "denied"
+                            ? "Bloqueadas no navegador"
+                            : permissaoNativa === "unsupported"
+                              ? "Não suportado"
+                              : "Pendente"}
                       </strong>
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-3">
-                    <span
-                      style={{
-                        backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
-                        color: perfilVisaoAtual.coresEventos.prova,
-                        borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                    >
-                      ● PROVA — Matemática
-                    </span>
-                    <span
-                      style={{
-                        backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
-                        color: perfilVisaoAtual.coresEventos.dever,
-                        borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                    >
-                      ▲ DEVER — Lista de POO
-                    </span>
-                    <span
-                      style={{
-                        backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
-                        color: perfilVisaoAtual.coresEventos.evento,
-                        borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
-                      }}
-                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                    >
-                      ■ EVENTO — Mostra Científica
-                    </span>
-                    <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
-                      ✓ Destaque Principal
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              {/* NOTIFICAÇÕES, SINCRONIZAÇÃO E CONTA */}
-              <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                    Notificações & Sincronização
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Status de notificações do navegador:{" "}
-                    <strong className="text-white">
-                      {permissaoNativa === "granted"
-                        ? "Ativadas"
-                        : permissaoNativa === "denied"
-                          ? "Bloqueadas no navegador"
-                          : permissaoNativa === "unsupported"
-                            ? "Não suportado"
-                            : "Pendente"}
-                    </strong>
-                  </p>
-                  <div className="flex flex-wrap gap-2.5">
-                    {permissaoNativa === "default" && (
+                    </p>
+                    <div className="flex flex-wrap gap-2.5">
+                      {permissaoNativa === "default" && (
+                        <button
+                          type="button"
+                          onClick={ativarNotificacoesNavegador}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition"
+                        >
+                          Ativar Notificações
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={ativarNotificacoesNavegador}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition"
+                        onClick={sincronizarTudo}
+                        className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl transition"
                       >
-                        Ativar Notificações
+                        Sincronizar Dados Agora
                       </button>
-                    )}
+                      {historicoNotif.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={limparHistoricoNotificacoes}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold px-4 py-2 rounded-xl transition"
+                        >
+                          Limpar Histórico ({historicoNotif.length})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                      Perfil & Permissões da Sessão
+                    </h3>
+                    <div className="text-xs text-slate-400 space-y-1">
+                      <div>
+                        Usuário:{" "}
+                        <strong className="text-white">
+                          {usuarioAtual.nome}
+                        </strong>{" "}
+                        ({usuarioAtual.cargo})
+                      </div>
+                      <div>
+                        Modo de edição:{" "}
+                        <strong
+                          className={
+                            isEditor ? "text-amber-400" : "text-slate-300"
+                          }
+                        >
+                          {isEditor ? "Ativo (Representante)" : "Somente Leitura"}
+                        </strong>
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      onClick={sincronizarTudo}
-                      className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl transition"
+                      onClick={() => abrirAcessoRepresentante(false)}
+                      className={`text-xs font-semibold px-4 py-2 rounded-xl border transition ${
+                        isEditor
+                          ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+                          : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+                      }`}
                     >
-                      Sincronizar Dados Agora
+                      {isEditor
+                        ? "Encerrar Sessão de Representante"
+                        : "Autenticar como Representante"}
                     </button>
-                    {historicoNotif.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={limparHistoricoNotificacoes}
-                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold px-4 py-2 rounded-xl transition"
-                      >
-                        Limpar Histórico ({historicoNotif.length})
-                      </button>
-                    )}
                   </div>
-                </div>
-
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                    Perfil & Permissões da Sessão
-                  </h3>
-                  <div className="text-xs text-slate-400 space-y-1">
-                    <div>
-                      Usuário:{" "}
-                      <strong className="text-white">
-                        {usuarioAtual.nome}
-                      </strong>{" "}
-                      ({usuarioAtual.cargo})
-                    </div>
-                    <div>
-                      Modo de edição:{" "}
-                      <strong
-                        className={
-                          isEditor ? "text-amber-400" : "text-slate-300"
-                        }
-                      >
-                        {isEditor ? "Ativo (Representante)" : "Somente Leitura"}
-                      </strong>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => abrirAcessoRepresentante(false)}
-                    className={`text-xs font-semibold px-4 py-2 rounded-xl border transition ${
-                      isEditor
-                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
-                        : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
-                    }`}
-                  >
-                    {isEditor
-                      ? "Encerrar Sessão de Representante"
-                      : "Autenticar como Representante"}
-                  </button>
-                </div>
-              </section>
-            </div>
-          )}
-        </main>
+                </section>
+              </div>
+            )}
+          </main>
+        </div>
 
         {overlaysGlobais}
       </div>
