@@ -6,6 +6,7 @@
     const {
       AnimatedList,
       LandingPage,
+      TURMAS_CONFIG,
       GRADE_PADRAO,
       api,
       utils: { contemOfensa, formatarContagemRegressiva },
@@ -14,15 +15,33 @@
       achadosPerdidos: achadosService,
     } = window.IFinityHub;
 
+    // Autenticação de Turma (1º Info, 2º Info, 3º Info)
+    const [turmaAutenticada, setTurmaAutenticada] = useState(() => {
+      const salva = localStorage.getItem("ifinityhub_turma_autenticada");
+      return salva && TURMAS_CONFIG?.[salva] ? salva : "";
+    });
+    const [turmaSelecionadaLogin, setTurmaSelecionadaLogin] = useState("info2");
+    const [senhaTurmaInput, setSenhaTurmaInput] = useState("");
+    const [mostrarSenhaTurma, setMostrarSenhaTurma] = useState(false);
+    const [erroLoginTurma, setErroLoginTurma] = useState("");
+
+    const configTurmaAtual = useMemo(
+      () =>
+        (turmaAutenticada && TURMAS_CONFIG?.[turmaAutenticada]) ||
+        TURMAS_CONFIG?.info2 ||
+        GRADE_PADRAO,
+      [turmaAutenticada, TURMAS_CONFIG, GRADE_PADRAO]
+    );
+
     const [mostrarLanding, setMostrarLanding] = useState(true);
     const [eventos, setEventos] = useState([]);
     const [materiais, setMateriais] = useState([]);
-    const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
+    const [gradeHoraria, setGradeHoraria] = useState(configTurmaAtual);
     const [aba, setAba] = useState("dashboard");
 
     // Estados de Achados & Perdidos
     const [itensAchadosPerdidos, setItensAchadosPerdidos] = useState([]);
-    const [filtroAP, setFiltroAP] = useState("todos"); // "todos" | "perdido" | "achado"
+    const [filtroAP, setFiltroAP] = useState("todos");
     const [buscaAP, setBuscaAP] = useState("");
     const [erroAP, setErroAP] = useState("");
 
@@ -44,7 +63,7 @@
     const [achadoFoto, setAchadoFoto] = useState(null);
     const [enviandoAchado, setEnviandoAchado] = useState(false);
 
-    // Preferências de Acessibilidade (Daltonismo, TalkBack, Auditivo, Tipografia)
+    // Preferências de Acessibilidade
     const [preferencias, setPreferencias] = useState(() =>
       a11yService.carregarPreferencias()
     );
@@ -269,7 +288,48 @@
     const calendarRef = useRef(null);
     const calendarInstanceRef = useRef(null);
 
+    // Login da Turma (1º Info, 2º Info, 3º Info)
+    const entrarNaTurma = (e) => {
+      e.preventDefault();
+      setErroLoginTurma("");
+      const turmaInfo = TURMAS_CONFIG?.[turmaSelecionadaLogin];
+      if (!turmaInfo) {
+        setErroLoginTurma("Selecione uma turma válida.");
+        return;
+      }
+      if (senhaTurmaInput.trim() !== turmaInfo.senha) {
+        setErroLoginTurma(
+          `Senha incorreta para ${turmaInfo.nomeCurto}. Verifique o código da sua turma.`
+        );
+        return;
+      }
+
+      localStorage.setItem("ifinityhub_turma_ativa", turmaInfo.id);
+      localStorage.setItem("ifinityhub_turma_autenticada", turmaInfo.id);
+      setTurmaAutenticada(turmaInfo.id);
+      setGradeHoraria(turmaInfo);
+      setSenhaTurmaInput("");
+      setMostrarLanding(true);
+    };
+
+    const sairDaTurma = () => {
+      localStorage.removeItem("ifinityhub_turma_autenticada");
+      setTurmaAutenticada("");
+      setSenhaEditor("");
+      setUsuarioAtual({
+        nome: "Estudante",
+        cargo: "Aluno",
+        permissoes: ["ler_provas", "ler_materiais", "postar_forum", "ler_editais"],
+      });
+      setEventos([]);
+      setMateriais([]);
+      setEditais([]);
+      setForumPosts([]);
+      setAba("dashboard");
+    };
+
     const sincronizarTudo = async () => {
+      if (!turmaAutenticada) return;
       try {
         const [resProvas, resMat, resEd, resForum, listaAP] = await Promise.all([
           api.listarProvas(),
@@ -384,6 +444,7 @@
     };
 
     const carregarGrade = async () => {
+      if (!turmaAutenticada) return;
       try {
         const resposta = await api.obterGrade();
         if (resposta.ok) {
@@ -394,12 +455,15 @@
     };
 
     useEffect(() => {
+      if (!turmaAutenticada) return;
+      localStorage.setItem("ifinityhub_turma_ativa", turmaAutenticada);
+      setGradeHoraria(configTurmaAtual);
       sincronizarTudo();
       carregarGrade();
 
       const intervalo = setInterval(sincronizarTudo, 60 * 1000);
       return () => clearInterval(intervalo);
-    }, []);
+    }, [turmaAutenticada]);
 
     useEffect(() => {
       if (!modalLoginAberto) return;
@@ -424,7 +488,12 @@
     );
 
     useEffect(() => {
-      if (!mostrarLanding && aba === "calendario" && calendarRef.current) {
+      if (
+        turmaAutenticada &&
+        !mostrarLanding &&
+        aba === "calendario" &&
+        calendarRef.current
+      ) {
         if (calendarInstanceRef.current) {
           calendarInstanceRef.current.destroy();
         }
@@ -442,7 +511,7 @@
         calendar.render();
         calendarInstanceRef.current = calendar;
       }
-    }, [mostrarLanding, aba, eventosAdaptados]);
+    }, [turmaAutenticada, mostrarLanding, aba, eventosAdaptados]);
 
     const naoLidas = historicoNotif.filter((n) => !n.lida).length;
 
@@ -755,7 +824,6 @@
       }
     };
 
-    // Dispara notificação completa ao publicar no Achados & Perdidos
     const notificarPublicacaoAP = (categoria, tituloItem, localItem, idItem) => {
       if (idItem && notifService.marcarChaveComoVista) {
         notifService.marcarChaveComoVista(`achado_${idItem}`);
@@ -792,7 +860,6 @@
       });
     };
 
-    // Submissão de Item Perdido
     const registrarItemPerdido = async (e) => {
       e.preventDefault();
       setErroAP("");
@@ -821,7 +888,7 @@
           local: localLimpo,
           descricao: perdidoDesc.trim(),
           contato: perdidoContato.trim(),
-          autor: perdidoAutor.trim() || "Estudante",
+          autor: `${perdidoAutor.trim() || "Estudante"} (${configTurmaAtual.nomeCurto})`,
           arquivoFoto: perdidoFoto,
         });
         setItensAchadosPerdidos(novaLista);
@@ -842,7 +909,6 @@
       }
     };
 
-    // Submissão de Item Achado
     const registrarItemAchado = async (e) => {
       e.preventDefault();
       setErroAP("");
@@ -871,7 +937,7 @@
           local: localLimpo,
           descricao: achadoDesc.trim(),
           contato: achadoContato.trim(),
-          autor: achadoAutor.trim() || "Estudante",
+          autor: `${achadoAutor.trim() || "Estudante"} (${configTurmaAtual.nomeCurto})`,
           arquivoFoto: achadoFoto,
         });
         setItensAchadosPerdidos(novaLista);
@@ -1046,10 +1112,10 @@
       [eventosAdaptados]
     );
 
-    const slotsMatutino = gradeHoraria.slots.filter(
+    const slotsMatutino = (gradeHoraria?.slots || []).filter(
       (s) => s.turno === "Matutino"
     );
-    const slotsVespertino = gradeHoraria.slots.filter(
+    const slotsVespertino = (gradeHoraria?.slots || []).filter(
       (s) => s.turno === "Vespertino"
     );
 
@@ -1130,14 +1196,15 @@
                 </div>
 
                 <span className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-1">
-                  Autenticação Restrita
+                  Autenticação Restrita • {configTurmaAtual.nomeCurto}
                 </span>
                 <h3 className="text-xl font-bold text-white tracking-tight">
                   Área do Representante
                 </h3>
                 <p className="text-xs text-slate-400 mt-1.5 max-w-xs leading-relaxed">
-                  Insira a chave de acesso da turma para gerenciar provas,
-                  editais, materiais PDF e moderação do fórum.
+                  Insira a chave de acesso de representante para gerenciar
+                  provas, editais, materiais PDF e moderação da turma{" "}
+                  <strong className="text-slate-200">{configTurmaAtual.nomeCurto}</strong>.
                 </p>
               </div>
 
@@ -1351,6 +1418,120 @@
       </>
     );
 
+    // TELA DE LOGIN DA TURMA (1º INFO, 2º INFO, 3º INFO)
+    if (!turmaAutenticada) {
+      const turmasDisponiveis = Object.values(TURMAS_CONFIG || {});
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
+          <div className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[560px] h-[560px] rounded-full bg-emerald-500/10 blur-3xl" />
+
+          <div className="relative w-full max-w-md rounded-3xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800/90 p-7 sm:p-8 shadow-[0_25px_70px_-15px_rgba(0,0,0,0.95)] space-y-6">
+            <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />
+
+            <div className="flex flex-col items-center text-center">
+              <img
+                src="./assets/lg%20IFinityHub.png"
+                alt="IFinityHub"
+                className="w-40 h-auto object-contain mb-3 select-none"
+              />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
+                IF Goiano • Campus Campos Belos
+              </span>
+              <h1 className="text-2xl font-bold text-white mt-1">
+                Acesso às Turmas de Informática
+              </h1>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                Selecione sua turma do Técnico em Informática e insira a senha
+                de acesso para visualizar horários, provas e materiais.
+              </p>
+            </div>
+
+            <form onSubmit={entrarNaTurma} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2">
+                  Selecione sua Turma
+                </label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {turmasDisponiveis.map((t) => {
+                    const ativa = turmaSelecionadaLogin === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setTurmaSelecionadaLogin(t.id);
+                          setErroLoginTurma("");
+                        }}
+                        className={`py-3 px-2 rounded-2xl border text-center transition-all ${
+                          ativa
+                            ? "bg-emerald-500/15 border-emerald-500 text-white shadow-[0_0_20px_-5px_rgba(16,185,129,0.45)]"
+                            : "bg-slate-950/80 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                        }`}
+                      >
+                        <div className="text-sm font-bold">{t.nomeCurto}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Téc. Info
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="senha-turma-input"
+                  className="block text-xs font-semibold text-slate-300 mb-1.5"
+                >
+                  Senha da Turma
+                </label>
+                <div className="relative">
+                  <input
+                    id="senha-turma-input"
+                    type={mostrarSenhaTurma ? "text" : "password"}
+                    value={senhaTurmaInput}
+                    onChange={(e) => {
+                      setSenhaTurmaInput(e.target.value);
+                      if (erroLoginTurma) setErroLoginTurma("");
+                    }}
+                    placeholder="Digite a senha da turma..."
+                    className={`w-full bg-slate-950 border rounded-xl py-3 pl-4 pr-11 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 transition ${
+                      erroLoginTurma
+                        ? "border-red-500/60 focus:ring-red-500/30"
+                        : "border-slate-800 focus:border-emerald-500/60 focus:ring-emerald-500/20"
+                    }`}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarSenhaTurma((v) => !v)}
+                    tabIndex={-1}
+                    className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-200 text-xs"
+                  >
+                    {mostrarSenhaTurma ? "Ocultar" : "Ver"}
+                  </button>
+                </div>
+              </div>
+
+              {erroLoginTurma && (
+                <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-xl px-3.5 py-2.5">
+                  {erroLoginTurma}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 px-5 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-sm font-bold shadow-[0_10px_25px_-6px_rgba(16,185,129,0.55)] transition"
+              >
+                Entrar no Portal da Turma →
+              </button>
+            </form>
+          </div>
+          {overlaysGlobais}
+        </div>
+      );
+    }
+
     if (mostrarLanding) {
       return (
         <>
@@ -1394,8 +1575,8 @@
                   className="w-36 h-auto object-contain mb-1.5 select-none"
                 />
               </button>
-              <span className="text-xs text-slate-400">
-                2º Téc. Informática • IF Goiano
+              <span className="text-xs font-semibold text-emerald-400">
+                {configTurmaAtual.nomeCurto} • IF Goiano
               </span>
             </div>
 
@@ -1438,7 +1619,7 @@
                     }`}
                   />
                   <span className="text-[11px] font-medium text-slate-400">
-                    Sessão atual
+                    {configTurmaAtual.nomeCurto}
                   </span>
                 </div>
                 <span
@@ -1473,12 +1654,20 @@
               </button>
             </div>
 
-            <button
-              onClick={() => setMostrarLanding(true)}
-              className="w-full text-xs text-slate-400 hover:text-white py-2 px-3 rounded-xl hover:bg-slate-800/70 transition"
-            >
-              ← Página Inicial
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setMostrarLanding(true)}
+                className="text-xs text-slate-400 hover:text-white py-2 px-2.5 rounded-xl hover:bg-slate-800/70 transition"
+              >
+                ← Início
+              </button>
+              <button
+                onClick={sairDaTurma}
+                className="text-xs text-red-400 hover:text-red-300 py-2 px-2.5 rounded-xl hover:bg-red-500/10 transition"
+              >
+                Trocar Turma
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -1488,7 +1677,7 @@
             <div className="flex items-center gap-2 text-xs text-slate-400 truncate">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
               <span className="truncate font-medium text-slate-300">
-                IFinityHub • Portal Acadêmico
+                IFinityHub • {configTurmaAtual.nomeCurto}
               </span>
               {preferencias.talkbackAtivo && (
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
@@ -1556,7 +1745,7 @@
                 <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b border-slate-800/70 pb-4">
                   <div>
                     <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                      Visão Geral da Turma
+                      Visão Geral • {configTurmaAtual.nomeCurto}
                     </span>
                     <h2 className="text-2xl font-bold text-white mt-0.5">
                       Mural de Atividades
@@ -1576,7 +1765,7 @@
                       <h3 className="font-semibold text-emerald-400">
                         {editandoId
                           ? "Editando Atividade"
-                          : "Adicionar Nova Atividade"}
+                          : `Adicionar Nova Atividade (${configTurmaAtual.nomeCurto})`}
                       </h3>
                       {editandoId && (
                         <button
@@ -1706,7 +1895,7 @@
                   />
                 ) : (
                   <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
-                    Nenhuma atividade agendada no momento.
+                    Nenhuma atividade agendada para {configTurmaAtual.nomeCurto} no momento.
                   </div>
                 )}
               </div>
@@ -1736,9 +1925,7 @@
                   </div>
                 )}
 
-                {/* DUAS SEÇÕES LADO A LADO: PERDI ALGO vs ACHEI ALGO */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* COLUNA 1: RELATAR O QUE FOI PERDIDO */}
                   <form
                     onSubmit={registrarItemPerdido}
                     className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 space-y-4 shadow-xl"
@@ -1753,7 +1940,7 @@
                             Perdi Algo
                           </h3>
                           <p className="text-xs text-slate-400">
-                            Avise a turma e informe onde você esteve por último
+                            Avise o campus e informe onde você esteve por último
                           </p>
                         </div>
                       </div>
@@ -1789,7 +1976,7 @@
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input
                           type="text"
-                          placeholder="Seu nome / Turma"
+                          placeholder="Seu nome"
                           value={perdidoAutor}
                           onChange={(e) => setPerdidoAutor(e.target.value)}
                           className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
@@ -1826,7 +2013,6 @@
                     </button>
                   </form>
 
-                  {/* COLUNA 2: RELATAR O QUE FOI ACHADO */}
                   <form
                     onSubmit={registrarItemAchado}
                     className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 space-y-4 shadow-xl"
@@ -1877,7 +2063,7 @@
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <input
                           type="text"
-                          placeholder="Seu nome / Turma"
+                          placeholder="Seu nome"
                           value={achadoAutor}
                           onChange={(e) => setAchadoAutor(e.target.value)}
                           className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
@@ -1915,7 +2101,6 @@
                   </form>
                 </div>
 
-                {/* BARRA DE FILTRO E PESQUISA DO MURAL DE ACHADOS & PERDIDOS */}
                 <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     {[
@@ -1953,7 +2138,6 @@
                   />
                 </div>
 
-                {/* LISTAGEM DOS ITENS */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {itensAPFiltrados.map((item) => {
                     const isPerdido = item.categoria === "perdido";
@@ -2197,7 +2381,9 @@
 
             {aba === "calendario" && (
               <div className="max-w-5xl mx-auto space-y-4">
-                <h2 className="text-2xl font-bold text-white mb-4">Calendário</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">
+                  Calendário • {configTurmaAtual.nomeCurto}
+                </h2>
                 <div
                   ref={calendarRef}
                   className="bg-slate-900 p-4 rounded-xl border border-slate-800"
@@ -2208,7 +2394,7 @@
             {aba === "materiais" && (
               <div className="max-w-5xl mx-auto space-y-8">
                 <h2 className="text-2xl font-bold text-white mb-4">
-                  Materiais & PDFs
+                  Materiais & PDFs • {configTurmaAtual.nomeCurto}
                 </h2>
 
                 {temPermissao("publicar_materiais") && (
@@ -2294,7 +2480,7 @@
               <div className="max-w-5xl mx-auto space-y-8">
                 <header>
                   <h2 className="text-2xl font-bold text-white mb-1">
-                    Fórum de Sugestões
+                    Fórum de Sugestões • {configTurmaAtual.nomeCurto}
                   </h2>
                   <p className="text-slate-400 text-sm">
                     Espaço para sugerir melhorias construtivas nos métodos de
@@ -2935,6 +3121,12 @@
                     </h3>
                     <div className="text-xs text-slate-400 space-y-1">
                       <div>
+                        Turma ativa:{" "}
+                        <strong className="text-emerald-400">
+                          {configTurmaAtual.nomeCurto}
+                        </strong>
+                      </div>
+                      <div>
                         Usuário:{" "}
                         <strong className="text-white">
                           {usuarioAtual.nome}
@@ -2952,19 +3144,28 @@
                         </strong>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => abrirAcessoRepresentante(false)}
-                      className={`text-xs font-semibold px-4 py-2 rounded-xl border transition ${
-                        isEditor
-                          ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
-                          : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
-                      }`}
-                    >
-                      {isEditor
-                        ? "Encerrar Sessão de Representante"
-                        : "Autenticar como Representante"}
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => abrirAcessoRepresentante(false)}
+                        className={`text-xs font-semibold px-4 py-2 rounded-xl border transition ${
+                          isEditor
+                            ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+                            : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+                        }`}
+                      >
+                        {isEditor
+                          ? "Encerrar Sessão de Representante"
+                          : "Autenticar como Representante"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={sairDaTurma}
+                        className="text-xs font-semibold px-4 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 transition"
+                      >
+                        Sair / Trocar Turma
+                      </button>
+                    </div>
                   </div>
                 </section>
               </div>
