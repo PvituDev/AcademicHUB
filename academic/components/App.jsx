@@ -2,6 +2,12 @@
   const { useState, useEffect, useRef, useMemo } = React;
   window.IFinityHub = window.IFinityHub || {};
 
+  const SENHAS_REPRESENTANTE_TURMA = {
+    info1: "admin2026", // 1º Info
+    info2: "admin2025", // 2º Info
+    info3: "admin2024", // 3º Info
+  };
+
   function App() {
     const {
       AnimatedList,
@@ -15,11 +21,8 @@
       achadosPerdidos: achadosService,
     } = window.IFinityHub;
 
-    // Autenticação de Turma (1º Info, 2º Info, 3º Info)
-    const [turmaAutenticada, setTurmaAutenticada] = useState(() => {
-      const salva = localStorage.getItem("ifinityhub_turma_autenticada");
-      return salva && TURMAS_CONFIG?.[salva] ? salva : "";
-    });
+    // Autenticação de Turma (1º Info, 2º Info, 3º Info) — inicia vazia para exigir login
+    const [turmaAutenticada, setTurmaAutenticada] = useState("");
     const [turmaSelecionadaLogin, setTurmaSelecionadaLogin] = useState("info2");
     const [senhaTurmaInput, setSenhaTurmaInput] = useState("");
     const [mostrarSenhaTurma, setMostrarSenhaTurma] = useState(false);
@@ -309,7 +312,7 @@
       setTurmaAutenticada(turmaInfo.id);
       setGradeHoraria(turmaInfo);
       setSenhaTurmaInput("");
-      setMostrarLanding(true);
+      setMostrarLanding(false);
     };
 
     const sairDaTurma = () => {
@@ -326,6 +329,7 @@
       setEditais([]);
       setForumPosts([]);
       setAba("dashboard");
+      setMostrarLanding(false);
     };
 
     const sincronizarTudo = async () => {
@@ -574,33 +578,61 @@
 
     const submeterLoginRepresentante = async (e) => {
       e.preventDefault();
-      if (!senhaInput.trim() || validandoLogin) return;
+      const senhaDigitada = senhaInput.trim();
+      if (!senhaDigitada || validandoLogin) return;
 
       setValidandoLogin(true);
       setErroLogin("");
 
+      const permissoesRepresentante = [
+        "ler_provas",
+        "ler_materiais",
+        "postar_forum",
+        "ler_editais",
+        "criar_provas",
+        "editar_provas",
+        "deletar_provas",
+        "publicar_materiais",
+        "moderar_forum",
+        "publicar_editais",
+      ];
+
+      const senhaEsperadaTurma = turmaAutenticada
+        ? SENHAS_REPRESENTANTE_TURMA[turmaAutenticada]
+        : null;
+      const todasSenhasRep = Object.values(SENHAS_REPRESENTANTE_TURMA);
+
+      const validaPorTurma = senhaEsperadaTurma
+        ? senhaDigitada === senhaEsperadaTurma
+        : todasSenhasRep.includes(senhaDigitada);
+
       try {
-        const resposta = await api.login(senhaInput);
+        if (validaPorTurma) {
+          setSenhaEditor(senhaDigitada);
+          setUsuarioAtual({
+            nome: `Representante ${configTurmaAtual.nomeCurto}`,
+            cargo: "Representante",
+            permissoes: permissoesRepresentante,
+          });
+          const deveAbrirPainel = abrirPainelPosLogin;
+          fecharModalLogin();
+          if (deveAbrirPainel) {
+            setAba("dashboard");
+            setMostrarLanding(false);
+          }
+          return;
+        }
+
+        const resposta = await api.login(senhaDigitada, turmaAutenticada);
         const resultado = await resposta.json();
 
         if (resposta.ok && resultado.success) {
-          setSenhaEditor(senhaInput);
+          setSenhaEditor(senhaDigitada);
           setUsuarioAtual(
             resultado.usuario || {
-              nome: "Representante",
+              nome: `Representante ${configTurmaAtual.nomeCurto}`,
               cargo: "Representante",
-              permissoes: [
-                "ler_provas",
-                "ler_materiais",
-                "postar_forum",
-                "ler_editais",
-                "criar_provas",
-                "editar_provas",
-                "deletar_provas",
-                "publicar_materiais",
-                "moderar_forum",
-                "publicar_editais",
-              ],
+              permissoes: permissoesRepresentante,
             }
           );
           const deveAbrirPainel = abrirPainelPosLogin;
@@ -610,11 +642,13 @@
             setMostrarLanding(false);
           }
         } else {
-          setErroLogin("Credencial inválida. Verifique a senha e tente novamente.");
+          setErroLogin(
+            `Credencial inválida para ${configTurmaAtual.nomeCurto}. Verifique a senha de representante e tente novamente.`
+          );
           inputSenhaRef.current?.select();
         }
       } catch (error) {
-        setErroLogin("Não foi possível conectar ao servidor de autenticação.");
+        setErroLogin("Não foi possível validar a credencial no momento.");
       } finally {
         setValidandoLogin(false);
       }
@@ -814,13 +848,19 @@
       if (!confirm("Tem certeza que deseja apagar esta sugestão?")) return;
       try {
         const resposta = await api.deletarForum(id, senhaEditor);
-        if (resposta.ok) sincronizarTudo();
-        else {
-          const erro = await resposta.json();
-          alert("Erro ao deletar: " + (erro.error || "Erro"));
+        if (resposta.ok) {
+          setForumPosts((prev) => prev.filter((p) => String(p.id) !== String(id)));
+          sincronizarTudo();
+        } else {
+          const erro = await resposta.json().catch(() => ({}));
+          alert(
+            "Erro ao deletar no servidor: " +
+              (erro.error || `Status ${resposta.status}. Verifique se o backend aceita a senha ${senhaEditor}.`)
+          );
         }
       } catch (error) {
         console.error("Erro ao deletar:", error);
+        alert("Erro de conexão ao tentar apagar a sugestão.");
       }
     };
 
@@ -1418,7 +1458,39 @@
       </>
     );
 
-    // TELA DE LOGIN DA TURMA (1º INFO, 2º INFO, 3º INFO)
+    // 1º PASSO: LANDING PAGE ANTES DA TELA DE LOGIN DE TURMA
+    if (mostrarLanding) {
+      return (
+        <>
+          <LandingPage
+            onEntrar={(abaDestino = "dashboard") => {
+              localStorage.removeItem("ifinityhub_turma_autenticada");
+              setTurmaAutenticada("");
+              setAba(abaDestino);
+              setMostrarLanding(false);
+            }}
+            onEntrarRepresentante={() => abrirAcessoRepresentante(true)}
+            onAbrirNotificacoes={() => setPainelNotifAberto(true)}
+            onAbrirPreferencias={() => {
+              localStorage.removeItem("ifinityhub_turma_autenticada");
+              setTurmaAutenticada("");
+              setAba("preferencias");
+              setMostrarLanding(false);
+            }}
+            modoVisao={preferencias.modoVisao}
+            destaqueHex={perfilVisaoAtual.destaqueHex}
+            isEditor={isEditor}
+            naoLidas={naoLidas}
+            totalEventos={eventos.length}
+            totalEditais={editais.length}
+            totalMateriais={materiais.length}
+          />
+          {overlaysGlobais}
+        </>
+      );
+    }
+
+    // 2º PASSO: TELA DE LOGIN DA TURMA (1º INFO, 2º INFO, 3º INFO)
     if (!turmaAutenticada) {
       const turmasDisponiveis = Object.values(TURMAS_CONFIG || {});
       return (
@@ -1429,11 +1501,18 @@
             <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/70 to-transparent" />
 
             <div className="flex flex-col items-center text-center">
-              <img
-                src="./assets/lg%20IFinityHub.png"
-                alt="IFinityHub"
-                className="w-40 h-auto object-contain mb-3 select-none"
-              />
+              <button
+                type="button"
+                onClick={() => setMostrarLanding(true)}
+                title="Voltar para a página inicial"
+                className="focus:outline-none hover:opacity-90 transition"
+              >
+                <img
+                  src="./assets/lg%20IFinityHub.png"
+                  alt="IFinityHub"
+                  className="w-40 h-auto object-contain mb-3 select-none"
+                />
+              </button>
               <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-400">
                 IF Goiano • Campus Campos Belos
               </span>
@@ -1525,6 +1604,14 @@
               >
                 Entrar no Portal da Turma →
               </button>
+
+              <button
+                type="button"
+                onClick={() => setMostrarLanding(true)}
+                className="w-full py-2 text-xs text-slate-400 hover:text-white transition"
+              >
+                ← Voltar para a Página Inicial
+              </button>
             </form>
           </div>
           {overlaysGlobais}
@@ -1532,33 +1619,7 @@
       );
     }
 
-    if (mostrarLanding) {
-      return (
-        <>
-          <LandingPage
-            onEntrar={(abaDestino = "dashboard") => {
-              setAba(abaDestino);
-              setMostrarLanding(false);
-            }}
-            onEntrarRepresentante={() => abrirAcessoRepresentante(true)}
-            onAbrirNotificacoes={() => setPainelNotifAberto(true)}
-            onAbrirPreferencias={() => {
-              setAba("preferencias");
-              setMostrarLanding(false);
-            }}
-            modoVisao={preferencias.modoVisao}
-            destaqueHex={perfilVisaoAtual.destaqueHex}
-            isEditor={isEditor}
-            naoLidas={naoLidas}
-            totalEventos={eventos.length}
-            totalEditais={editais.length}
-            totalMateriais={materiais.length}
-          />
-          {overlaysGlobais}
-        </>
-      );
-    }
-
+    // 3º PASSO: PAINEL INTERNO DA TURMA AUTENTICADA
     return (
       <div className="flex flex-col md:flex-row h-screen bg-slate-950 text-slate-100 font-sans">
         <aside className="w-full md:w-72 bg-slate-900/90 border-b md:border-b-0 md:border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0 overflow-y-auto">
