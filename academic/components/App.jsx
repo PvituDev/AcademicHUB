@@ -279,9 +279,8 @@
           achadosService ? achadosService.listarItens() : Promise.resolve([]),
         ]);
 
-        if (Array.isArray(listaAP)) {
-          setItensAchadosPerdidos(listaAP);
-        }
+        const listaAchadosValidada = Array.isArray(listaAP) ? listaAP : [];
+        setItensAchadosPerdidos(listaAchadosValidada);
 
         let listaEventosFormatados = [];
         if (resProvas.ok) {
@@ -350,6 +349,7 @@
           eventos: listaEventosFormatados,
           editais: listaEditais,
           materiais: listaMateriais,
+          achados: listaAchadosValidada,
         });
 
         if (novidades.length > 0) {
@@ -755,6 +755,43 @@
       }
     };
 
+    // Dispara notificação completa ao publicar no Achados & Perdidos
+    const notificarPublicacaoAP = (categoria, tituloItem, localItem, idItem) => {
+      if (idItem && notifService.marcarChaveComoVista) {
+        notifService.marcarChaveComoVista(`achado_${idItem}`);
+      }
+
+      const notif = {
+        uid: `ap_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        titulo:
+          categoria === "perdido"
+            ? `Item Perdido Relatado: ${tituloItem}`
+            : `Item Encontrado no Campus: ${tituloItem}`,
+        descricao: `Local: ${localItem}`,
+        aba: "achados",
+        lida: false,
+        criadoEm: new Date().toISOString(),
+      };
+
+      setHistoricoNotif((prev) => {
+        const atualizado = [notif, ...prev];
+        notifService.salvarHistorico(atualizado);
+        return atualizado;
+      });
+      setToasts((prev) => [notif, ...prev].slice(0, 4));
+
+      if (preferencias.alertasVisuaisAudicao) {
+        dispararFlashVisual();
+      }
+      if (preferencias.talkbackAtivo) {
+        falarComSuporte(`${notif.titulo}. ${notif.descricao}`);
+      }
+      notifService.dispararNativa(notif.titulo, notif.descricao, () => {
+        setMostrarLanding(false);
+        setAba("achados");
+      });
+    };
+
     // Submissão de Item Perdido
     const registrarItemPerdido = async (e) => {
       e.preventDefault();
@@ -776,16 +813,24 @@
 
       try {
         setEnviandoPerdido(true);
+        const tituloLimpo = perdidoTitulo.trim();
+        const localLimpo = perdidoLocal.trim();
         const novaLista = await achadosService.publicarItem({
           categoria: "perdido",
-          titulo: perdidoTitulo.trim(),
-          local: perdidoLocal.trim(),
+          titulo: tituloLimpo,
+          local: localLimpo,
           descricao: perdidoDesc.trim(),
           contato: perdidoContato.trim(),
           autor: perdidoAutor.trim() || "Estudante",
           arquivoFoto: perdidoFoto,
         });
         setItensAchadosPerdidos(novaLista);
+        notificarPublicacaoAP(
+          "perdido",
+          tituloLimpo,
+          localLimpo,
+          novaLista?.[0]?.id
+        );
         setPerdidoTitulo("");
         setPerdidoLocal("");
         setPerdidoDesc("");
@@ -818,16 +863,24 @@
 
       try {
         setEnviandoAchado(true);
+        const tituloLimpo = achadoTitulo.trim();
+        const localLimpo = achadoLocal.trim();
         const novaLista = await achadosService.publicarItem({
           categoria: "achado",
-          titulo: achadoTitulo.trim(),
-          local: achadoLocal.trim(),
+          titulo: tituloLimpo,
+          local: localLimpo,
           descricao: achadoDesc.trim(),
           contato: achadoContato.trim(),
           autor: achadoAutor.trim() || "Estudante",
           arquivoFoto: achadoFoto,
         });
         setItensAchadosPerdidos(novaLista);
+        notificarPublicacaoAP(
+          "achado",
+          tituloLimpo,
+          localLimpo,
+          novaLista?.[0]?.id
+        );
         setAchadoTitulo("");
         setAchadoLocal("");
         setAchadoDesc("");
@@ -1198,7 +1251,7 @@
                     Central de Avisos
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Provas, editais, eventos e materiais recentes
+                    Provas, editais, achados e perdidos e materiais recentes
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
