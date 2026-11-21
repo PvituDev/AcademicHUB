@@ -11,6 +11,7 @@
       utils: { contemOfensa, formatarContagemRegressiva },
       notificacoes: notifService,
       acessibilidade: a11yService,
+      achadosPerdidos: achadosService,
     } = window.IFinityHub;
 
     const [mostrarLanding, setMostrarLanding] = useState(true);
@@ -18,6 +19,30 @@
     const [materiais, setMateriais] = useState([]);
     const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
     const [aba, setAba] = useState("dashboard");
+
+    // Estados de Achados & Perdidos
+    const [itensAchadosPerdidos, setItensAchadosPerdidos] = useState([]);
+    const [filtroAP, setFiltroAP] = useState("todos"); // "todos" | "perdido" | "achado"
+    const [buscaAP, setBuscaAP] = useState("");
+    const [erroAP, setErroAP] = useState("");
+
+    // Formulário 1: Relatar Item Perdido
+    const [perdidoTitulo, setPerdidoTitulo] = useState("");
+    const [perdidoLocal, setPerdidoLocal] = useState("");
+    const [perdidoDesc, setPerdidoDesc] = useState("");
+    const [perdidoContato, setPerdidoContato] = useState("");
+    const [perdidoAutor, setPerdidoAutor] = useState("");
+    const [perdidoFoto, setPerdidoFoto] = useState(null);
+    const [enviandoPerdido, setEnviandoPerdido] = useState(false);
+
+    // Formulário 2: Relatar Item Achado
+    const [achadoTitulo, setAchadoTitulo] = useState("");
+    const [achadoLocal, setAchadoLocal] = useState("");
+    const [achadoDesc, setAchadoDesc] = useState("");
+    const [achadoContato, setAchadoContato] = useState("");
+    const [achadoAutor, setAchadoAutor] = useState("");
+    const [achadoFoto, setAchadoFoto] = useState(null);
+    const [enviandoAchado, setEnviandoAchado] = useState(false);
 
     // Preferências de Acessibilidade (Daltonismo, TalkBack, Auditivo, Tipografia)
     const [preferencias, setPreferencias] = useState(() =>
@@ -59,7 +84,6 @@
       );
     };
 
-    // Modo TalkBack: lê automaticamente qualquer botão, link, cartão ou campo focado/clicado
     useEffect(() => {
       if (!preferencias.talkbackAtivo) {
         a11yService.pararFala();
@@ -68,9 +92,10 @@
 
       const extrairDescricaoElemento = (el) => {
         if (!el) return "";
-        const alvo = el.closest(
-          "button, a, input, select, textarea, article, tr, [role='button'], [tabindex]"
-        ) || el;
+        const alvo =
+          el.closest(
+            "button, a, input, select, textarea, article, tr, [role='button'], [tabindex]"
+          ) || el;
 
         const ariaLabel = alvo.getAttribute?.("aria-label");
         if (ariaLabel) return ariaLabel;
@@ -102,7 +127,11 @@
         document.removeEventListener("click", aoClicar, true);
         document.removeEventListener("focusin", aoFocar, true);
       };
-    }, [preferencias.talkbackAtivo, preferencias.velocidadeVoz, preferencias.legendasVozAtivas]);
+    }, [
+      preferencias.talkbackAtivo,
+      preferencias.velocidadeVoz,
+      preferencias.legendasVozAtivas,
+    ]);
 
     const lerResumoAbaAtual = () => {
       if (aba === "dashboard") {
@@ -115,6 +144,16 @@
                 .map((e) => `${e.tipo}: ${e.nomeOriginal}, data ${e.start}.`)
                 .join(" ");
         falarComSuporte(resumo);
+      } else if (aba === "achados") {
+        const perdidosCount = itensAchadosPerdidos.filter(
+          (i) => i.categoria === "perdido" && !i.resolvido
+        ).length;
+        const achadosCount = itensAchadosPerdidos.filter(
+          (i) => i.categoria === "achado" && !i.resolvido
+        ).length;
+        falarComSuporte(
+          `Aba Achados e Perdidos. Há ${perdidosCount} itens relatados como perdidos e ${achadosCount} itens encontrados aguardando dono.`
+        );
       } else if (aba === "editais") {
         const resumo =
           editais.length === 0
@@ -122,7 +161,10 @@
             : `Editais abertos: ${editais.length} oportunidades. ` +
               editais
                 .slice(0, 4)
-                .map((ed) => `${ed.titulo}${ed.prazo ? `, prazo até ${ed.prazo}` : ""}.`)
+                .map(
+                  (ed) =>
+                    `${ed.titulo}${ed.prazo ? `, prazo até ${ed.prazo}` : ""}.`
+                )
                 .join(" ");
         falarComSuporte(resumo);
       } else if (aba === "materiais") {
@@ -229,12 +271,17 @@
 
     const sincronizarTudo = async () => {
       try {
-        const [resProvas, resMat, resEd, resForum] = await Promise.all([
+        const [resProvas, resMat, resEd, resForum, listaAP] = await Promise.all([
           api.listarProvas(),
           api.listarMateriais(),
           api.listarEditais(),
           api.listarForum(),
+          achadosService ? achadosService.listarItens() : Promise.resolve([]),
         ]);
+
+        if (Array.isArray(listaAP)) {
+          setItensAchadosPerdidos(listaAP);
+        }
 
         let listaEventosFormatados = [];
         if (resProvas.ok) {
@@ -319,7 +366,9 @@
           }
 
           if (preferencias.talkbackAtivo) {
-            falarComSuporte(`Nova publicação: ${novidades[0].titulo}. ${novidades[0].descricao}`);
+            falarComSuporte(
+              `Nova publicação: ${novidades[0].titulo}. ${novidades[0].descricao}`
+            );
           }
 
           novidades.forEach((n) => {
@@ -706,6 +755,115 @@
       }
     };
 
+    // Submissão de Item Perdido
+    const registrarItemPerdido = async (e) => {
+      e.preventDefault();
+      setErroAP("");
+
+      if (!perdidoTitulo.trim() || !perdidoLocal.trim()) {
+        setErroAP("Informe o objeto perdido e o local aproximado.");
+        return;
+      }
+
+      if (
+        contemOfensa(perdidoTitulo) ||
+        contemOfensa(perdidoLocal) ||
+        contemOfensa(perdidoDesc)
+      ) {
+        setErroAP("O texto contém linguagem imprópria e não pode ser publicado.");
+        return;
+      }
+
+      try {
+        setEnviandoPerdido(true);
+        const novaLista = await achadosService.publicarItem({
+          categoria: "perdido",
+          titulo: perdidoTitulo.trim(),
+          local: perdidoLocal.trim(),
+          descricao: perdidoDesc.trim(),
+          contato: perdidoContato.trim(),
+          autor: perdidoAutor.trim() || "Estudante",
+          arquivoFoto: perdidoFoto,
+        });
+        setItensAchadosPerdidos(novaLista);
+        setPerdidoTitulo("");
+        setPerdidoLocal("");
+        setPerdidoDesc("");
+        setPerdidoContato("");
+        setPerdidoAutor("");
+        setPerdidoFoto(null);
+      } finally {
+        setEnviandoPerdido(false);
+      }
+    };
+
+    // Submissão de Item Achado
+    const registrarItemAchado = async (e) => {
+      e.preventDefault();
+      setErroAP("");
+
+      if (!achadoTitulo.trim() || !achadoLocal.trim()) {
+        setErroAP("Informe o objeto encontrado e o local onde foi achado.");
+        return;
+      }
+
+      if (
+        contemOfensa(achadoTitulo) ||
+        contemOfensa(achadoLocal) ||
+        contemOfensa(achadoDesc)
+      ) {
+        setErroAP("O texto contém linguagem imprópria e não pode ser publicado.");
+        return;
+      }
+
+      try {
+        setEnviandoAchado(true);
+        const novaLista = await achadosService.publicarItem({
+          categoria: "achado",
+          titulo: achadoTitulo.trim(),
+          local: achadoLocal.trim(),
+          descricao: achadoDesc.trim(),
+          contato: achadoContato.trim(),
+          autor: achadoAutor.trim() || "Estudante",
+          arquivoFoto: achadoFoto,
+        });
+        setItensAchadosPerdidos(novaLista);
+        setAchadoTitulo("");
+        setAchadoLocal("");
+        setAchadoDesc("");
+        setAchadoContato("");
+        setAchadoAutor("");
+        setAchadoFoto(null);
+      } finally {
+        setEnviandoAchado(false);
+      }
+    };
+
+    const alternarStatusAP = async (id) => {
+      const novaLista = await achadosService.alternarResolvido(id);
+      setItensAchadosPerdidos(novaLista);
+    };
+
+    const removerItemAP = async (id) => {
+      if (!confirm("Remover este registro de Achados & Perdidos?")) return;
+      const novaLista = await achadosService.deletarItem(id, senhaEditor);
+      setItensAchadosPerdidos(novaLista);
+    };
+
+    const itensAPFiltrados = useMemo(() => {
+      const termo = buscaAP.trim().toLowerCase();
+      return itensAchadosPerdidos.filter((item) => {
+        if (filtroAP !== "todos" && item.categoria !== filtroAP) return false;
+        if (!termo) return true;
+        return (
+          (item.titulo || "").toLowerCase().includes(termo) ||
+          (item.local || "").toLowerCase().includes(termo) ||
+          (item.descricao || "").toLowerCase().includes(termo) ||
+          (item.autor || "").toLowerCase().includes(termo)
+        );
+      });
+    }, [itensAchadosPerdidos, filtroAP, buscaAP]);
+
     const menuAbas = useMemo(
       () => [
         {
@@ -753,6 +911,20 @@
           ),
         },
         {
+          id: "achados",
+          title: "Achados & Perdidos",
+          description: "Objetos no campus",
+          meta:
+            itensAchadosPerdidos.filter((i) => !i.resolvido).length > 0
+              ? `${itensAchadosPerdidos.filter((i) => !i.resolvido).length}`
+              : undefined,
+          icon: (
+            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          ),
+        },
+        {
           id: "calendario",
           title: "Calendário",
           description: "Visão mensal",
@@ -774,7 +946,13 @@
           ),
         },
       ],
-      [eventos.length, editais.length, materiais.length, forumPosts.length]
+      [
+        eventos.length,
+        editais.length,
+        materiais.length,
+        itensAchadosPerdidos,
+        forumPosts.length,
+      ]
     );
 
     const indiceAbaAtiva = useMemo(
@@ -834,7 +1012,6 @@
 
     const overlaysGlobais = (
       <>
-        {/* Flash Visual na borda da tela para Deficiência Auditiva */}
         {flashVisualAtivo && (
           <div
             aria-hidden="true"
@@ -842,7 +1019,6 @@
           />
         )}
 
-        {/* Barra de Legenda / Transcrição ao vivo quando TalkBack + Legendas estiverem ativos */}
         {preferencias.legendasVozAtivas && legendaAtual && (
           <div
             role="status"
@@ -1178,7 +1354,7 @@
               theme="dark"
               accentColor={perfilVisaoAtual.destaqueHex}
               width="100%"
-              maxHeight={500}
+              maxHeight={520}
               radius={12}
               gap={7}
               stagger={0.04}
@@ -1269,7 +1445,6 @@
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
-              {/* Botão rápido "Ler Tela" quando TalkBack estiver ligado */}
               {preferencias.talkbackAtivo && (
                 <button
                   type="button"
@@ -1299,7 +1474,6 @@
                 )}
               </button>
 
-              {/* BOTÃO DE PREFERÊNCIAS NA PARTE SUPERIOR */}
               <button
                 type="button"
                 onClick={() => setAba("preferencias")}
@@ -1482,6 +1656,356 @@
                     Nenhuma atividade agendada no momento.
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ABA: ACHADOS E PERDIDOS */}
+            {aba === "achados" && (
+              <div className="max-w-6xl mx-auto space-y-8">
+                <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 border-b border-slate-800/70 pb-5">
+                  <div>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
+                      Utilidade do Campus • IF Goiano
+                    </span>
+                    <h2 className="text-2xl font-bold text-white mt-0.5">
+                      Achados & Perdidos
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      Relate objetos perdidos com o local aproximado ou publique
+                      itens encontrados para devolver aos colegas.
+                    </p>
+                  </div>
+                </header>
+
+                {erroAP && (
+                  <div className="bg-red-500/10 border border-red-500/30 text-red-300 text-xs rounded-xl px-4 py-3">
+                    {erroAP}
+                  </div>
+                )}
+
+                {/* DUAS SEÇÕES LADO A LADO: PERDI ALGO vs ACHEI ALGO */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* COLUNA 1: RELATAR O QUE FOI PERDIDO */}
+                  <form
+                    onSubmit={registrarItemPerdido}
+                    className="bg-slate-900 border border-amber-500/30 rounded-2xl p-6 space-y-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold">
+                          ?
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-white text-base">
+                            Perdi Algo
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Avise a turma e informe onde você esteve por último
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        Perdido
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="O que você perdeu? (Ex: Garrafa térmica azul, Carregador)"
+                        value={perdidoTitulo}
+                        onChange={(e) => setPerdidoTitulo(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Local próximo (Ex: Lab. de Informática 2, Cantina, Bloco B)"
+                        value={perdidoLocal}
+                        onChange={(e) => setPerdidoLocal(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white"
+                        required
+                      />
+                      <textarea
+                        placeholder="Características (cor, marca, adesivos, horário aproximado...)"
+                        value={perdidoDesc}
+                        onChange={(e) => setPerdidoDesc(e.target.value)}
+                        rows={2}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white resize-none"
+                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Seu nome / Turma"
+                          value={perdidoAutor}
+                          onChange={(e) => setPerdidoAutor(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Contato (WhatsApp ou @)"
+                          value={perdidoContato}
+                          onChange={(e) => setPerdidoContato(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">
+                          Foto de referência (opcional):
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setPerdidoFoto(e.target.files[0])}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-slate-300"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={enviandoPerdido}
+                      className="w-full bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-xl transition text-sm"
+                    >
+                      {enviandoPerdido
+                        ? "Publicando..."
+                        : "Publicar Item Perdido"}
+                    </button>
+                  </form>
+
+                  {/* COLUNA 2: RELATAR O QUE FOI ACHADO */}
+                  <form
+                    onSubmit={registrarItemAchado}
+                    className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 space-y-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold">
+                          ✓
+                        </span>
+                        <div>
+                          <h3 className="font-bold text-white text-base">
+                            Achei Algo
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            Registre o objeto encontrado e onde ele está guardado
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        Encontrado
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="O que você encontrou? (Ex: Chaveiro, Caderno de Cálculo)"
+                        value={achadoTitulo}
+                        onChange={(e) => setAchadoTitulo(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white"
+                        required
+                      />
+                      <input
+                        type="text"
+                        placeholder="Onde foi encontrado? (Ex: Quadra, Biblioteca, Sala 04)"
+                        value={achadoLocal}
+                        onChange={(e) => setAchadoLocal(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white"
+                        required
+                      />
+                      <textarea
+                        placeholder="Detalhes e onde retirar (Ex: Deixei na portaria / Está comigo)"
+                        value={achadoDesc}
+                        onChange={(e) => setAchadoDesc(e.target.value)}
+                        rows={2}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white resize-none"
+                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Seu nome / Turma"
+                          value={achadoAutor}
+                          onChange={(e) => setAchadoAutor(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Contato (WhatsApp ou @)"
+                          value={achadoContato}
+                          onChange={(e) => setAchadoContato(e.target.value)}
+                          className="bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">
+                          Foto do objeto encontrado (opcional):
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setAchadoFoto(e.target.files[0])}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2 text-xs text-slate-300"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={enviandoAchado}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-2.5 px-5 rounded-xl transition text-sm"
+                    >
+                      {enviandoAchado
+                        ? "Publicando..."
+                        : "Publicar Item Encontrado"}
+                    </button>
+                  </form>
+                </div>
+
+                {/* BARRA DE FILTRO E PESQUISA DO MURAL DE ACHADOS & PERDIDOS */}
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { id: "todos", label: `Todos (${itensAchadosPerdidos.length})` },
+                      {
+                        id: "perdido",
+                        label: `Perdidos (${itensAchadosPerdidos.filter((i) => i.categoria === "perdido").length})`,
+                      },
+                      {
+                        id: "achado",
+                        label: `Achados (${itensAchadosPerdidos.filter((i) => i.categoria === "achado").length})`,
+                      },
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setFiltroAP(tab.id)}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
+                          filtroAP === tab.id
+                            ? "bg-emerald-600 border-emerald-500 text-white"
+                            : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="search"
+                    value={buscaAP}
+                    onChange={(e) => setBuscaAP(e.target.value)}
+                    placeholder="Buscar por objeto ou local..."
+                    className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 sm:w-64"
+                  />
+                </div>
+
+                {/* LISTAGEM DOS ITENS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {itensAPFiltrados.map((item) => {
+                    const isPerdido = item.categoria === "perdido";
+                    return (
+                      <article
+                        key={item.id}
+                        className={`bg-slate-900 border rounded-2xl overflow-hidden flex flex-col justify-between transition ${
+                          item.resolvido
+                            ? "border-slate-800/60 opacity-65"
+                            : isPerdido
+                              ? "border-amber-500/35"
+                              : "border-emerald-500/35"
+                        }`}
+                      >
+                        <div>
+                          {item.imagem_url && (
+                            <img
+                              src={item.imagem_url}
+                              alt={item.titulo}
+                              className="w-full h-44 object-cover border-b border-slate-800"
+                            />
+                          )}
+                          <div className="p-5 space-y-2.5">
+                            <div className="flex items-center justify-between gap-2">
+                              <span
+                                className={`text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border ${
+                                  isPerdido
+                                    ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                                    : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                }`}
+                              >
+                                {isPerdido ? "Perdido" : "Encontrado"}
+                              </span>
+
+                              {item.resolvido && (
+                                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                                  Devolvido ✓
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="font-bold text-white text-base leading-snug">
+                              {item.titulo}
+                            </h4>
+
+                            <div className="text-xs text-emerald-400 font-medium">
+                              📍 Local: {item.local}
+                            </div>
+
+                            {item.descricao && (
+                              <p className="text-xs text-slate-300 leading-relaxed">
+                                {item.descricao}
+                              </p>
+                            )}
+
+                            <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-0.5">
+                              <div>
+                                Por: <strong className="text-slate-200">{item.autor}</strong>
+                              </div>
+                              {item.contato && (
+                                <div>
+                                  Contato:{" "}
+                                  <strong className="text-emerald-300">
+                                    {item.contato}
+                                  </strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="px-5 pb-4 flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => alternarStatusAP(item.id)}
+                            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition ${
+                              item.resolvido
+                                ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
+                                : "bg-emerald-500/15 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/25"
+                            }`}
+                          >
+                            {item.resolvido
+                              ? "Reabrir Registro"
+                              : "Marcar como Devolvido"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => removerItemAP(item.id)}
+                            title="Remover item"
+                            className="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-2 rounded-xl text-xs transition"
+                          >
+                            Apagar
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+
+                  {itensAPFiltrados.length === 0 && (
+                    <div className="col-span-full bg-slate-900/60 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm">
+                      Nenhum item registrado nesta categoria ainda.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -2046,7 +2570,6 @@
 
                 {/* DEFICIÊNCIA VISUAL (TALKBACK) E DEFICIÊNCIA AUDITIVA */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Card TalkBack / Leitor de Tela */}
                   <div
                     className={`rounded-2xl p-6 border transition-all space-y-4 ${
                       preferencias.talkbackAtivo
@@ -2129,7 +2652,6 @@
                     </div>
                   </div>
 
-                  {/* Card Acessibilidade Auditiva */}
                   <div
                     className={`rounded-2xl p-6 border transition-all space-y-4 ${
                       preferencias.alertasVisuaisAudicao ||
