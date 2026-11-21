@@ -8,8 +8,7 @@
       id: "normal",
       nome: "Normal Vision (Padrão)",
       subtitulo: "Paleta original em esmeralda, vermelho e âmbar.",
-      descricao:
-        "Exibição padrão do IFinityHub sem alteração cromática.",
+      descricao: "Exibição padrão do IFinityHub sem alteração cromática.",
       destaqueHex: "#10b981",
       coresEventos: {
         prova: "#dc2626",
@@ -17,15 +16,14 @@
         evento: "#8b5cf6",
         outro: "#2563eb",
       },
-      matrizSVG:
-        "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0",
+      matrizSVG: "1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0",
     },
     protanopia: {
       id: "protanopia",
       nome: "Protanopia (Deficiência no Vermelho)",
       subtitulo: "Substitui conflitos vermelho/verde por Azul Cobalto, Ouro e Ciano.",
       descricao:
-        "Otimizado para quem tem baixa ou nenhuma sensibilidade aos cones vermelhos (L). Troca alertas vermelhos por laranja vivo e destaques verdes por azul ciano.",
+        "Otimizado para baixa sensibilidade aos cones vermelhos (L). Troca alertas vermelhos por laranja vivo e destaques verdes por azul ciano.",
       destaqueHex: "#0ea5e9",
       coresEventos: {
         prova: "#ea580c",
@@ -41,7 +39,7 @@
       nome: "Deuteranopia (Deficiência no Verde)",
       subtitulo: "Contraste máximo entre Azul Safira, Laranja Queimado e Amarelo.",
       descricao:
-        "Otimizado para quem tem dificuldade em distinguir tons de verde e vermelho (cones M). Usa o eixo azul-amarelo/laranja para separar provas, deveres e status.",
+        "Otimizado para dificuldade em distinguir verde e vermelho (cones M). Usa o eixo azul-amarelo/laranja para separar provas, deveres e status.",
       destaqueHex: "#3b82f6",
       coresEventos: {
         prova: "#f97316",
@@ -57,7 +55,7 @@
       nome: "Tritanopia (Deficiência no Azul/Amarelo)",
       subtitulo: "Usa Vermelho Carmesim, Turquesa e Rosa Magenta de alto contraste.",
       descricao:
-        "Otimizado para quem tem dificuldade em distinguir azul e amarelo (cones S). Prioriza o eixo vermelho-turquesa/ciano para diferenciar categorias.",
+        "Otimizado para dificuldade em distinguir azul e amarelo (cones S). Prioriza o eixo vermelho-turquesa/ciano para diferenciar categorias.",
       destaqueHex: "#14b8a6",
       coresEventos: {
         prova: "#e11d48",
@@ -72,8 +70,12 @@
 
   const PREFS_PADRAO = {
     modoVisao: "normal",
-    aplicarFiltroImagens: false,
+    escalaFonte: 100, // 90, 100, 110, 120 (%)
+    espacamentoLeitura: false,
+    reduzirAnimacoes: false,
     altoContrasteBordas: false,
+    aplicarFiltroImagens: false,
+    destacarLinksBotoes: false,
   };
 
   function carregarPreferencias() {
@@ -127,6 +129,21 @@
       "data-image-filter",
       prefs.aplicarFiltroImagens && perfil.id !== "normal" ? "true" : "false"
     );
+    root.setAttribute(
+      "data-reading-spacing",
+      prefs.espacamentoLeitura ? "true" : "false"
+    );
+    root.setAttribute(
+      "data-reduce-motion",
+      prefs.reduzirAnimacoes ? "true" : "false"
+    );
+    root.setAttribute(
+      "data-highlight-interactive",
+      prefs.destacarLinksBotoes ? "true" : "false"
+    );
+
+    const escala = Number(prefs.escalaFonte) || 100;
+    root.style.fontSize = `${escala}%`;
     root.style.setProperty("--a11y-accent", perfil.destaqueHex);
 
     const matrixEl = garantirFiltroSVG();

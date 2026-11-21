@@ -19,7 +19,7 @@
     const [gradeHoraria, setGradeHoraria] = useState(GRADE_PADRAO);
     const [aba, setAba] = useState("dashboard");
 
-    // Preferências de Acessibilidade (Normal Vision, Protanopia, Deuteranopia, Tritanopia)
+    // Preferências de Acessibilidade e Configurações
     const [preferencias, setPreferencias] = useState(() =>
       a11yService.carregarPreferencias()
     );
@@ -33,9 +33,26 @@
       setPreferencias((prev) => ({ ...prev, [chave]: valor }));
     };
 
+    const alterarEscalaFonte = (delta) => {
+      setPreferencias((prev) => {
+        const atual = Number(prev.escalaFonte) || 100;
+        const proxima = Math.min(125, Math.max(85, atual + delta));
+        return { ...prev, escalaFonte: proxima };
+      });
+    };
+
     const perfilVisaoAtual =
       a11yService.PERFIS_VISAO[preferencias.modoVisao] ||
       a11yService.PERFIS_VISAO.normal;
+
+    const temAcessibilidadeAtiva =
+      preferencias.modoVisao !== "normal" ||
+      preferencias.escalaFonte !== 100 ||
+      preferencias.espacamentoLeitura ||
+      preferencias.reduzirAnimacoes ||
+      preferencias.altoContrasteBordas ||
+      preferencias.aplicarFiltroImagens ||
+      preferencias.destacarLinksBotoes;
 
     // Estados de Notificações
     const [historicoNotif, setHistoricoNotif] = useState(() =>
@@ -211,7 +228,6 @@
       return () => clearInterval(intervalo);
     }, []);
 
-    // Foco automático e fechamento por ESC no Modal de Login
     useEffect(() => {
       if (!modalLoginAberto) return;
       const timer = setTimeout(() => inputSenhaRef.current?.focus(), 60);
@@ -282,6 +298,11 @@
         notifService.salvarHistorico(atualizado);
         return atualizado;
       });
+    };
+
+    const limparHistoricoNotificacoes = () => {
+      setHistoricoNotif([]);
+      notifService.salvarHistorico([]);
     };
 
     const fecharModalLogin = () => {
@@ -630,12 +651,12 @@
         },
         {
           id: "preferencias",
-          title: "Preferências",
-          description: "Visão e daltonismo",
-          meta: preferencias.modoVisao !== "normal" ? "Ativo" : undefined,
+          title: "Configurações",
+          description: "Acessibilidade e sistema",
+          meta: temAcessibilidadeAtiva ? "Ativo" : undefined,
           icon: (
             <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           ),
@@ -646,7 +667,7 @@
         editais.length,
         materiais.length,
         forumPosts.length,
-        preferencias.modoVisao,
+        temAcessibilidadeAtiva,
       ]
     );
 
@@ -705,10 +726,8 @@
       );
     };
 
-    // --- OVERLAYS GLOBAIS (Modal de Login + Central de Notificações + Toasts) ---
     const overlaysGlobais = (
       <>
-        {/* Modal Profissional de Acesso do Representante */}
         {modalLoginAberto && (
           <div
             className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4"
@@ -849,7 +868,6 @@
           </div>
         )}
 
-        {/* Central de Notificações (Modal) */}
         {painelNotifAberto && (
           <div
             className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
@@ -928,7 +946,6 @@
           </div>
         )}
 
-        {/* Toasts Flutuantes */}
         {toasts.length > 0 && (
           <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0">
             {toasts.map((t) => (
@@ -1014,7 +1031,6 @@
               </span>
             </div>
 
-            {/* Botão do Sininho de Notificações */}
             <div className="mb-4">
               <button
                 onClick={() => setPainelNotifAberto((v) => !v)}
@@ -1060,7 +1076,6 @@
           </div>
 
           <div className="mt-5 space-y-2.5 pt-4 border-t border-slate-800/70">
-            {/* Card de status do perfil + botão de acesso */}
             <div
               className={`rounded-2xl p-3 border transition-all ${
                 isEditor
@@ -1671,18 +1686,18 @@
               <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-slate-800/70 pb-5">
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                    Acessibilidade Visual
+                    Personalização & Sistema
                   </span>
                   <h2 className="text-2xl font-bold text-white mt-0.5">
-                    Configurações & Preferências de Visão
+                    Configurações
                   </h2>
                   <p className="text-slate-400 text-sm mt-1">
-                    Adapte a paleta de cores do IFinityHub para facilitar a
-                    leitura de provas, calendários, alertas e editais.
+                    Gerencie os recursos da Barra de Acessibilidade, perfis de
+                    daltonismo, notificações e sessão do portal.
                   </p>
                 </div>
 
-                {preferencias.modoVisao !== "normal" && (
+                {temAcessibilidadeAtiva && (
                   <button
                     onClick={() =>
                       setPreferencias({ ...a11yService.PREFS_PADRAO })
@@ -1694,10 +1709,167 @@
                 )}
               </header>
 
+              {/* BARRA DE ACESSIBILIDADE DEDICADA */}
+              <section
+                aria-label="Barra de Acessibilidade"
+                className="bg-gradient-to-b from-slate-900 to-slate-900/70 border border-emerald-500/30 rounded-2xl p-5 space-y-4 shadow-xl"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </span>
+                    <div>
+                      <h3 className="text-base font-bold text-white">
+                        Barra de Acessibilidade
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Controles rápidos de tipografia, contraste, leitura e
+                        movimento
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
+                    Escala atual:{" "}
+                    <strong className="text-emerald-400">
+                      {preferencias.escalaFonte}%
+                    </strong>
+                  </span>
+                </div>
+
+                {/* Controles da Barra */}
+                <div
+                  role="toolbar"
+                  aria-label="Ferramentas de Acessibilidade"
+                  className="flex flex-wrap items-center gap-2.5"
+                >
+                  {/* Controle de Tamanho da Fonte */}
+                  <div className="inline-flex items-center rounded-xl bg-slate-950 border border-slate-800 p-1">
+                    <button
+                      type="button"
+                      onClick={() => alterarEscalaFonte(-5)}
+                      disabled={preferencias.escalaFonte <= 85}
+                      title="Diminuir tamanho da fonte"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
+                    >
+                      A-
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => atualizarPreferencia("escalaFonte", 100)}
+                      title="Tamanho padrão da fonte (100%)"
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 hover:bg-slate-800 transition"
+                    >
+                      100%
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => alterarEscalaFonte(5)}
+                      disabled={preferencias.escalaFonte >= 125}
+                      title="Aumentar tamanho da fonte"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-200 hover:bg-slate-800 disabled:opacity-40 transition"
+                    >
+                      A+
+                    </button>
+                  </div>
+
+                  {/* Alto Contraste */}
+                  <button
+                    type="button"
+                    aria-pressed={preferencias.altoContrasteBordas}
+                    onClick={() =>
+                      atualizarPreferencia(
+                        "altoContrasteBordas",
+                        !preferencias.altoContrasteBordas
+                      )
+                    }
+                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                      preferencias.altoContrasteBordas
+                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <span>◐</span>
+                    <span>Alto Contraste</span>
+                  </button>
+
+                  {/* Espaçamento de Leitura */}
+                  <button
+                    type="button"
+                    aria-pressed={preferencias.espacamentoLeitura}
+                    onClick={() =>
+                      atualizarPreferencia(
+                        "espacamentoLeitura",
+                        !preferencias.espacamentoLeitura
+                      )
+                    }
+                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                      preferencias.espacamentoLeitura
+                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <span>≡</span>
+                    <span>Espaçamento de Leitura</span>
+                  </button>
+
+                  {/* Destacar Links e Foco */}
+                  <button
+                    type="button"
+                    aria-pressed={preferencias.destacarLinksBotoes}
+                    onClick={() =>
+                      atualizarPreferencia(
+                        "destacarLinksBotoes",
+                        !preferencias.destacarLinksBotoes
+                      )
+                    }
+                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                      preferencias.destacarLinksBotoes
+                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <span>⌘</span>
+                    <span>Destacar Links & Foco</span>
+                  </button>
+
+                  {/* Reduzir Animações */}
+                  <button
+                    type="button"
+                    aria-pressed={preferencias.reduzirAnimacoes}
+                    onClick={() =>
+                      atualizarPreferencia(
+                        "reduzirAnimacoes",
+                        !preferencias.reduzirAnimacoes
+                      )
+                    }
+                    className={`px-3.5 py-2 rounded-xl border text-xs font-semibold transition inline-flex items-center gap-2 ${
+                      preferencias.reduzirAnimacoes
+                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300"
+                        : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700"
+                    }`}
+                  >
+                    <span>⏸</span>
+                    <span>Reduzir Animações</span>
+                  </button>
+                </div>
+              </section>
+
+              {/* PERFIS DE DALTONISMO / VISÃO */}
               <section className="space-y-4">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                  Perfil de Percepção de Cores
-                </h3>
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    Perfil de Percepção de Cores (Daltonismo)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Adapta automaticamente as cores de provas, deveres, eventos
+                    no calendário e destaques do sistema.
+                  </p>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {Object.values(a11yService.PERFIS_VISAO).map((perfil) => {
@@ -1769,109 +1941,167 @@
                     );
                   })}
                 </div>
-              </section>
 
-              <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                  Reforços Visuais Complementares
-                </h3>
-
-                <div className="divide-y divide-slate-800/80">
-                  <label className="py-3.5 first:pt-0 flex items-center justify-between gap-4 cursor-pointer">
-                    <div>
-                      <div className="font-semibold text-white text-sm">
-                        Reforço de Contraste em Bordas e Textos
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Aumenta a nitidez de cartões, tabelas da grade horária e
-                        textos secundários.
-                      </div>
+                {/* Filtro SVG em imagens */}
+                <label className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4 cursor-pointer">
+                  <div>
+                    <div className="font-semibold text-white text-sm">
+                      Aplicar Matriz de Compensação em Imagens e Banners
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={preferencias.altoContrasteBordas}
-                      onChange={(e) =>
-                        atualizarPreferencia(
-                          "altoContrasteBordas",
-                          e.target.checked
-                        )
-                      }
-                      className="w-5 h-5 accent-emerald-500 rounded cursor-pointer"
-                    />
-                  </label>
-
-                  <label className="py-3.5 last:pb-0 flex items-center justify-between gap-4 cursor-pointer">
-                    <div>
-                      <div className="font-semibold text-white text-sm">
-                        Aplicar Matriz de Compensação em Imagens e Banners
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Ajusta tonalidades de imagens de editais usando filtro
-                        SVG conforme o perfil selecionado.
-                      </div>
+                    <div className="text-xs text-slate-400">
+                      Aplica filtro SVG de daltonismo sobre banners de editais e
+                      ilustrações quando um modo diferente de Normal Vision está
+                      ativo.
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={preferencias.aplicarFiltroImagens}
-                      onChange={(e) =>
-                        atualizarPreferencia(
-                          "aplicarFiltroImagens",
-                          e.target.checked
-                        )
-                      }
-                      className="w-5 h-5 accent-emerald-500 rounded cursor-pointer"
-                    />
-                  </label>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={preferencias.aplicarFiltroImagens}
+                    onChange={(e) =>
+                      atualizarPreferencia(
+                        "aplicarFiltroImagens",
+                        e.target.checked
+                      )
+                    }
+                    className="w-5 h-5 accent-emerald-500 rounded cursor-pointer shrink-0"
+                  />
+                </label>
+
+                {/* Pré-visualização */}
+                <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Pré-visualização em Tempo Real
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Modo:{" "}
+                      <strong className="text-white">
+                        {perfilVisaoAtual.nome}
+                      </strong>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    <span
+                      style={{
+                        backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
+                        color: perfilVisaoAtual.coresEventos.prova,
+                        borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                    >
+                      ● PROVA — Matemática
+                    </span>
+                    <span
+                      style={{
+                        backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
+                        color: perfilVisaoAtual.coresEventos.dever,
+                        borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                    >
+                      ▲ DEVER — Lista de POO
+                    </span>
+                    <span
+                      style={{
+                        backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
+                        color: perfilVisaoAtual.coresEventos.evento,
+                        borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                    >
+                      ■ EVENTO — Mostra Científica
+                    </span>
+                    <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
+                      ✓ Destaque Principal
+                    </span>
+                  </div>
                 </div>
               </section>
 
-              <section className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 space-y-4">
-                <div className="flex items-center justify-between">
+              {/* NOTIFICAÇÕES, SINCRONIZAÇÃO E CONTA */}
+              <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
                   <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
-                    Pré-visualização de Etiquetas & Alertas
+                    Notificações & Sincronização
                   </h3>
-                  <span className="text-xs text-slate-400">
-                    Modo atual:{" "}
+                  <p className="text-xs text-slate-400">
+                    Status de notificações do navegador:{" "}
                     <strong className="text-white">
-                      {perfilVisaoAtual.nome}
+                      {permissaoNativa === "granted"
+                        ? "Ativadas"
+                        : permissaoNativa === "denied"
+                          ? "Bloqueadas no navegador"
+                          : permissaoNativa === "unsupported"
+                            ? "Não suportado"
+                            : "Pendente"}
                     </strong>
-                  </span>
+                  </p>
+                  <div className="flex flex-wrap gap-2.5">
+                    {permissaoNativa === "default" && (
+                      <button
+                        type="button"
+                        onClick={ativarNotificacoesNavegador}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition"
+                      >
+                        Ativar Notificações
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={sincronizarTudo}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-4 py-2 rounded-xl transition"
+                    >
+                      Sincronizar Dados Agora
+                    </button>
+                    {historicoNotif.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={limparHistoricoNotificacoes}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold px-4 py-2 rounded-xl transition"
+                      >
+                        Limpar Histórico ({historicoNotif.length})
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <span
-                    style={{
-                      backgroundColor: `${perfilVisaoAtual.coresEventos.prova}22`,
-                      color: perfilVisaoAtual.coresEventos.prova,
-                      borderColor: `${perfilVisaoAtual.coresEventos.prova}55`,
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300">
+                    Perfil & Permissões da Sessão
+                  </h3>
+                  <div className="text-xs text-slate-400 space-y-1">
+                    <div>
+                      Usuário:{" "}
+                      <strong className="text-white">
+                        {usuarioAtual.nome}
+                      </strong>{" "}
+                      ({usuarioAtual.cargo})
+                    </div>
+                    <div>
+                      Modo de edição:{" "}
+                      <strong
+                        className={
+                          isEditor ? "text-amber-400" : "text-slate-300"
+                        }
+                      >
+                        {isEditor ? "Ativo (Representante)" : "Somente Leitura"}
+                      </strong>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => abrirAcessoRepresentante(false)}
+                    className={`text-xs font-semibold px-4 py-2 rounded-xl border transition ${
+                      isEditor
+                        ? "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30"
+                        : "bg-slate-800 border-slate-700 text-white hover:bg-slate-700"
+                    }`}
                   >
-                    ● PROVA — Matemática
-                  </span>
-                  <span
-                    style={{
-                      backgroundColor: `${perfilVisaoAtual.coresEventos.dever}22`,
-                      color: perfilVisaoAtual.coresEventos.dever,
-                      borderColor: `${perfilVisaoAtual.coresEventos.dever}55`,
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                  >
-                    ▲ DEVER — Lista de POO
-                  </span>
-                  <span
-                    style={{
-                      backgroundColor: `${perfilVisaoAtual.coresEventos.evento}22`,
-                      color: perfilVisaoAtual.coresEventos.evento,
-                      borderColor: `${perfilVisaoAtual.coresEventos.evento}55`,
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl border text-xs font-bold"
-                  >
-                    ■ EVENTO — Mostra Científica
-                  </span>
-                  <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 text-xs font-bold">
-                    ✓ Destaque Principal
-                  </span>
+                    {isEditor
+                      ? "Encerrar Sessão de Representante"
+                      : "Autenticar como Representante"}
+                  </button>
                 </div>
               </section>
             </div>

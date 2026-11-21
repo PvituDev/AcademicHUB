@@ -21,7 +21,7 @@
 }
 
 /* =========================================================
-   ACESSIBILIDADE VISUAL & SUPORTE A DALTONISMO
+   BARRA DE ACESSIBILIDADE & SUPORTE A DALTONISMO
    ========================================================= */
 
 :root {
@@ -33,12 +33,37 @@ html[data-image-filter="true"] img {
   filter: url(#ifinityhub-daltonismo-filter);
 }
 
+/* Espaçamento confortável para leitura (dislexia / baixa visão) */
+html[data-reading-spacing="true"] body {
+  letter-spacing: 0.03em;
+  word-spacing: 0.08em;
+  line-height: 1.75;
+}
+
+/* Redução de animações e transições */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Sublinhar / destacar elementos interativos */
+html[data-highlight-interactive="true"] a,
+html[data-highlight-interactive="true"] button:focus-visible {
+  text-decoration: underline;
+  outline: 2px solid var(--a11y-accent, #10b981) !important;
+  outline-offset: 2px;
+}
+
 /* Reforço opcional de contraste em bordas e textos */
 html[data-high-contrast="true"] .border-slate-800,
 html[data-high-contrast="true"] .border-slate-800\/70,
 html[data-high-contrast="true"] .border-slate-800\/80,
 html[data-high-contrast="true"] .border-slate-800\/90 {
-  border-color: rgba(148, 163, 184, 0.45) !important;
+  border-color: rgba(148, 163, 184, 0.55) !important;
 }
 
 html[data-high-contrast="true"] .text-slate-400,
