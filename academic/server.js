@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const multer = require("multer");
+const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
@@ -18,18 +19,22 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve os arquivos do front-end (index.html, CSS, JS, assets)
+app.use(express.static(path.join(__dirname)));
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 const supabase = createClient(
-  process.env.SUPABASE_URL || "https://jnkonklwmaseeylebhdt.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    "sb_publishable_lQ1jnvO5jio3YqNRNDUkuw_a33pg5s7"
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 );
+
+const BUCKET_NAME = "ifinityhub";
 
 // Instâncias principais
 const representanteTurma = new Representante(
   "Representante 2º Info",
-  process.env.SENHA_REPRESENTANTE || "info2026"
+  process.env.EDITOR_PASSWORD || process.env.SENHA_REPRESENTANTE || "info2026"
 );
 const gradeTurma = new GradeHoraria("2º ano Téc. Informática — IF Goiano");
 
@@ -146,19 +151,19 @@ app.post(
       material.validar();
 
       const extensao = arquivo.originalname.split(".").pop();
-      const nomeArquivoUnico = `${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
+      const caminhoArquivo = `materiais/${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
 
       const { error: storageError } = await supabase.storage
-        .from("MATERIAIS_PDF")
-        .upload(nomeArquivoUnico, arquivo.buffer, {
+        .from(BUCKET_NAME)
+        .upload(caminhoArquivo, arquivo.buffer, {
           contentType: arquivo.mimetype,
         });
 
       if (storageError) throw storageError;
 
       const { data: publicUrlData } = supabase.storage
-        .from("MATERIAIS_PDF")
-        .getPublicUrl(nomeArquivoUnico);
+        .from(BUCKET_NAME)
+        .getPublicUrl(caminhoArquivo);
 
       material.url = publicUrlData.publicUrl;
 
@@ -185,9 +190,12 @@ app.delete("/api/materiais/:id", verificarAutenticacao, async (req, res) => {
       .single();
 
     if (material && material.url) {
-      const partesUrl = material.url.split("/");
-      const nomeArquivo = partesUrl[partesUrl.length - 1];
-      await supabase.storage.from("MATERIAIS_PDF").remove([nomeArquivo]);
+      const marcador = `/object/public/${BUCKET_NAME}/`;
+      const idx = material.url.indexOf(marcador);
+      if (idx !== -1) {
+        const caminhoStorage = material.url.substring(idx + marcador.length);
+        await supabase.storage.from(BUCKET_NAME).remove([caminhoStorage]);
+      }
     }
 
     const { error } = await supabase.from("materiais").delete().eq("id", id);
@@ -228,19 +236,19 @@ app.post(
 
       if (req.file) {
         const extensao = req.file.originalname.split(".").pop();
-        const nomeArquivoUnico = `${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
+        const caminhoArquivo = `editais/${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
 
         const { error: storageError } = await supabase.storage
-          .from("EDITAIS_IMAGENS")
-          .upload(nomeArquivoUnico, req.file.buffer, {
+          .from(BUCKET_NAME)
+          .upload(caminhoArquivo, req.file.buffer, {
             contentType: req.file.mimetype,
           });
 
         if (storageError) throw storageError;
 
         const { data: publicUrlData } = supabase.storage
-          .from("EDITAIS_IMAGENS")
-          .getPublicUrl(nomeArquivoUnico);
+          .from(BUCKET_NAME)
+          .getPublicUrl(caminhoArquivo);
 
         edital.imagemUrl = publicUrlData.publicUrl;
       }
@@ -272,9 +280,12 @@ app.delete("/api/editais/:id", verificarAutenticacao, async (req, res) => {
       .single();
 
     if (edital && edital.imagem_url) {
-      const partesUrl = edital.imagem_url.split("/");
-      const nomeArquivo = partesUrl[partesUrl.length - 1];
-      await supabase.storage.from("EDITAIS_IMAGENS").remove([nomeArquivo]);
+      const marcador = `/object/public/${BUCKET_NAME}/`;
+      const idx = edital.imagem_url.indexOf(marcador);
+      if (idx !== -1) {
+        const caminhoStorage = edital.imagem_url.substring(idx + marcador.length);
+        await supabase.storage.from(BUCKET_NAME).remove([caminhoStorage]);
+      }
     }
 
     const { error } = await supabase.from("editais").delete().eq("id", id);
