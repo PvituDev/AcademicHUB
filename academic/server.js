@@ -31,27 +31,26 @@ const supabase = createClient(
 
 const BUCKET_NAME = "ifinityhub";
 
-// Instâncias principais (trim() evita falhas por espaços acidentais nas variáveis do Render)
 const senhaConfigurada = (
   process.env.EDITOR_PASSWORD ||
   process.env.SENHA_REPRESENTANTE ||
-  "info2026"
+  "admin123"
 ).trim();
 
 const representanteTurma = new Representante(
-  "Representante 2º Info",
+  "Representante",
   senhaConfigurada
 );
-const gradeTurma = new GradeHoraria("2º ano Téc. Informática — IF Goiano");
+const gradeTurma = new GradeHoraria("Téc. Informática — IF Goiano");
 
 const verificarAutenticacao = (req, res, next) => {
   const senhaEnviada = (
-    req.headers["x-admin-password"] ||
     req.headers["x-editor-password"] ||
+    req.headers["x-admin-password"] ||
     ""
   ).trim();
 
-  if (!representanteTurma.autenticar(senhaEnviada)) {
+  if (!senhaEnviada || !representanteTurma.autenticar(senhaEnviada)) {
     return res
       .status(401)
       .json({ error: "Acesso não autorizado. Senha incorreta." });
@@ -82,23 +81,38 @@ app.get("/api/grade", (req, res) => {
 // ROTAS DE PROVAS / ATIVIDADES
 // ==========================================
 app.get("/api/provas", async (req, res) => {
-  const { data, error } = await supabase.from("provas").select("*");
+  let query = supabase.from("provas").select("*");
+  if (req.query.turma) {
+    query = query.eq("turma", req.query.turma);
+  }
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  const atividades = data.map((item) => Atividade.criarPorTipo(item).toJSON());
+  const atividades = data.map((item) => ({
+    ...Atividade.criarPorTipo(item).toJSON(),
+    turma: item.turma || "info2",
+  }));
   res.json(atividades);
 });
 
 app.post("/api/provas", verificarAutenticacao, async (req, res) => {
   try {
     const atividade = Atividade.criarPorTipo(req.body);
+    const registro = {
+      ...atividade.toDatabase(),
+      turma: req.body.turma || "info2",
+    };
+
     const { data, error } = await supabase
       .from("provas")
-      .insert([atividade.toDatabase()])
+      .insert([registro])
       .select();
 
     if (error) return res.status(500).json({ error: error.message });
-    res.status(201).json(Atividade.criarPorTipo(data[0]).toJSON());
+    res.status(201).json({
+      ...Atividade.criarPorTipo(data[0]).toJSON(),
+      turma: data[0].turma,
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -108,10 +122,14 @@ app.put("/api/provas/:id", verificarAutenticacao, async (req, res) => {
   try {
     const { id } = req.params;
     const atividade = Atividade.criarPorTipo({ ...req.body, id });
+    const atualizacao = {
+      ...atividade.toDatabase(),
+      ...(req.body.turma ? { turma: req.body.turma } : {}),
+    };
 
     const { data, error } = await supabase
       .from("provas")
-      .update(atividade.toDatabase())
+      .update(atualizacao)
       .eq("id", id)
       .select();
 
@@ -122,7 +140,10 @@ app.put("/api/provas/:id", verificarAutenticacao, async (req, res) => {
 
     res.json({
       message: "Atividade atualizada com sucesso",
-      data: Atividade.criarPorTipo(data[0]).toJSON(),
+      data: {
+        ...Atividade.criarPorTipo(data[0]).toJSON(),
+        turma: data[0].turma,
+      },
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -140,7 +161,11 @@ app.delete("/api/provas/:id", verificarAutenticacao, async (req, res) => {
 // ROTAS DE MATERIAIS (PDFs)
 // ==========================================
 app.get("/api/materiais", async (req, res) => {
-  const { data, error } = await supabase.from("materiais").select("*");
+  let query = supabase.from("materiais").select("*");
+  if (req.query.turma) {
+    query = query.eq("turma", req.query.turma);
+  }
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -180,7 +205,9 @@ app.post(
 
       const { error: dbError } = await supabase
         .from("materiais")
-        .insert([material.toDatabase()]);
+        .insert([
+          { ...material.toDatabase(), turma: req.body.turma || "info2" },
+        ]);
 
       if (dbError) throw dbError;
 
@@ -222,11 +249,16 @@ app.delete("/api/materiais/:id", verificarAutenticacao, async (req, res) => {
 // ROTAS DE EDITAIS DE PROJETOS
 // ==========================================
 app.get("/api/editais", async (req, res) => {
-  const { data, error } = await supabase
+  let query = supabase
     .from("editais")
     .select("*")
     .order("criado_em", { ascending: false });
 
+  if (req.query.turma) {
+    query = query.eq("turma", req.query.turma);
+  }
+
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -266,7 +298,7 @@ app.post(
 
       const { data, error: dbError } = await supabase
         .from("editais")
-        .insert([edital.toDatabase()])
+        .insert([{ ...edital.toDatabase(), turma: req.body.turma || "info2" }])
         .select();
 
       if (dbError) throw dbError;
@@ -312,10 +344,16 @@ app.delete("/api/editais/:id", verificarAutenticacao, async (req, res) => {
 // ROTAS DO FÓRUM
 // ==========================================
 app.get("/api/forum", async (req, res) => {
-  const { data, error } = await supabase
+  let query = supabase
     .from("forum")
     .select("*")
     .order("criado_em", { ascending: false });
+
+  if (req.query.turma) {
+    query = query.eq("turma", req.query.turma);
+  }
+
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -327,7 +365,7 @@ app.post("/api/forum", async (req, res) => {
 
     const { data, error } = await supabase
       .from("forum")
-      .insert([sugestao.toDatabase()])
+      .insert([{ ...sugestao.toDatabase(), turma: req.body.turma || "info2" }])
       .select();
 
     if (error) return res.status(500).json({ error: error.message });
