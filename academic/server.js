@@ -31,15 +31,26 @@ const supabase = createClient(
 
 const BUCKET_NAME = "ifinityhub";
 
-// Instâncias principais
+// Instâncias principais (trim() evita falhas por espaços acidentais nas variáveis do Render)
+const senhaConfigurada = (
+  process.env.EDITOR_PASSWORD ||
+  process.env.SENHA_REPRESENTANTE ||
+  "info2026"
+).trim();
+
 const representanteTurma = new Representante(
   "Representante 2º Info",
-  process.env.EDITOR_PASSWORD || process.env.SENHA_REPRESENTANTE || "info2026"
+  senhaConfigurada
 );
 const gradeTurma = new GradeHoraria("2º ano Téc. Informática — IF Goiano");
 
 const verificarAutenticacao = (req, res, next) => {
-  const senhaEnviada = req.headers["x-admin-password"];
+  const senhaEnviada = (
+    req.headers["x-admin-password"] ||
+    req.headers["x-editor-password"] ||
+    ""
+  ).trim();
+
   if (!representanteTurma.autenticar(senhaEnviada)) {
     return res
       .status(401)
@@ -52,7 +63,7 @@ const verificarAutenticacao = (req, res, next) => {
 // LOGIN E GRADE HORÁRIA
 // ==========================================
 app.post("/api/login", (req, res) => {
-  const { senha } = req.body;
+  const senha = (req.body.senha || "").trim();
   if (representanteTurma.autenticar(senha)) {
     return res.json({
       success: true,
@@ -334,6 +345,133 @@ app.delete("/api/forum/:id", verificarAutenticacao, async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
   res.json({ message: "Sugestão removida com sucesso" });
 });
+
+// ==========================================
+// ROTAS DE ACHADOS E PERDIDOS
+// ==========================================
+app.get("/api/achados-perdidos", async (req, res) => {
+  const { data, error } = await supabase
+    .from("achados_perdidos")
+    .select("*")
+    .order("criado_em", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post("/api/achados-perdidos", upload.single("foto"), async (req, res) => {
+  try {
+    const { categoria, titulo, local, descricao, contato, autor } = req.body;
+    if (!titulo || !categoria) {
+      return res
+        .status(400)
+        .json({ error: "Categoria e título são obrigatórios." });
+    }
+
+    let imagemUrl = "";
+    if (req.file) {
+      const extensao = req.file.originalname.split(".").pop();
+      const caminhoArquivo = `achados/${Date.now()}_${Math.random().toString(36).substring(7)}.${extensao}`;
+
+      const { error: storageError } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(caminhoArquivo, req.file.buffer, {
+          contentType: req.file.mimetype,
+        });
+
+      if (storageError) throw storageError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(caminhoArquivo);
+
+      imagemUrl = publicUrlData.publicUrl;
+    }
+
+    const { data, error: dbError } = await supabase
+      .from("achados_perdidos")
+      .insert([
+        {
+          categoria,
+          titulo,
+          local: local || "",
+          descricao: descricao || "",
+          contato: contato || "",
+          autor: autor || "Anônimo",
+          imagem_url: imagemUrl,
+          resolvido: false,
+        },
+      ])
+      .select();
+
+    if (dbError) throw dbError;
+    res.status(201).json(data[0]);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.patch("/api/achados-perdidos/:id/resolver", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: atual, error: fetchError } = await supabase
+      .from("achados_perdidos")
+      .select("resolvido")
+      .eq("id", id)
+      .single();
+
+    if (fetchError || !atual) {
+      return res.status(404).json({ error: "Item não encontrado." });
+    }
+
+    const { data, error } = await supabase
+      .from("achados_perdidos")
+      .update({ resolvido: !atual.resolvido })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+    res.json(data[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete(
+  "/api/achados-perdidos/:id",
+  verificarAutenticacao,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { data: item } = await supabase
+        .from("achados_perdidos")
+        .select("imagem_url")
+        .eq("id", id)
+        .single();
+
+      if (item && item.imagem_url) {
+        const marcador = `/object/public/${BUCKET_NAME}/`;
+        const idx = item.imagem_url.indexOf(marcador);
+        if (idx !== -1) {
+          const caminhoStorage = item.imagem_url.substring(
+            idx + marcador.length
+          );
+          await supabase.storage.from(BUCKET_NAME).remove([caminhoStorage]);
+        }
+      }
+
+      const { error } = await supabase
+        .from("achados_perdidos")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+
+      res.json({ message: "Item removido com sucesso." });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Backend POO rodando na porta ${PORT}`));
